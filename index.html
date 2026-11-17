@@ -1,71 +1,39 @@
 <!DOCTYPE html>
-<html lang="ur" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Panel (CMS) — مدرسہ + مسجد</title>
+<title>Admin Panel (CMS) — Madrasa + Masjid</title>
 <link rel="stylesheet" href="admin.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<!-- ============ LOGIN FIRST (v2) — panel is hidden until login ============ -->
+<!-- ============ LOGIN FIRST — panel is hidden until login ============ -->
 <div class="login-screen" id="loginScreen" style="display:flex">
   <div class="login-card">
     <img id="loginLogo" class="login-logo" style="display:none" alt="Madrasa logo">
     <div class="brand-mark" aria-hidden="true">M</div>
-    <h1 id="loginBrandName">مدرسہ (Madrasa Name — change in Settings)</h1>
-    <p class="hint">لاگ ان کریں — Login to continue</p>
+    <h1 id="loginBrandName">Madrasa</h1>
+    <p class="hint" data-i18n="loginHint">Log in to continue</p>
     <form id="loginForm" onsubmit="doLoginUI(event)">
-      <label>یوزر نیم (Username)</label>
+      <label data-i18n="username">Username</label>
       <input id="loginUser" required autocomplete="username" placeholder="admin">
-      <label>پاس ورڈ (Password)</label>
+      <label data-i18n="password">Password</label>
       <input id="loginPass" type="password" required autocomplete="current-password" placeholder="••••••••">
       <br><br>
-      <button class="btn" type="submit" style="width:100%">لاگ ان (Login)</button>
+      <button class="btn" type="submit" style="width:100%" data-i18n="login">Log in</button>
     </form>
-    <p id="forgotLinkRow"><a class="forgot-link" href="#" onclick="showForgotUI();return false;">پاس ورڈ بھول گئے؟ (Forgot Password?)</a></p>
-    <p class="login-success" id="forgotSuccess"></p>
     <p class="login-error" id="loginError"></p>
-    <!-- v3: FORGOT PASSWORD — 3 screens inside the login card -->
-    <div id="forgotScreen" style="display:none;text-align:start">
-      <h3 style="text-align:center">🔑 پاس ورڈ بھول گئے؟ (Forgot Password)</h3>
-      <div id="forgotStep1">
-        <form onsubmit="requestResetUI(event)">
-          <label>یوزر نیم یا ای میل (Username or Email)</label>
-          <input id="forgotIdentifierInput" dir="ltr" required placeholder="admin / email@example.com">
-          <br><br><button class="btn" type="submit" style="width:100%">📩 ری سیٹ کوڈ بھیجیں (Send reset code)</button>
-        </form>
-        <p><a href="#" onclick="askAdminResetUI();return false;">ایڈمن سے رابطہ کریں (Ask Admin instead)</a> · <a href="#" onclick="backToLoginUI();return false;">← واپس لاگ ان پر (Back to login)</a></p>
-        <p class="login-error" id="forgotMsg"></p>
-      </div>
-      <div id="forgotStep2" style="display:none">
-        <div id="forgotStep2Body"></div>
-        <form onsubmit="verifyResetCodeUI(event)">
-          <label>6 ہندسوں والا کوڈ (6-digit code)</label>
-          <input id="forgotCodeInput" dir="ltr" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="123456">
-          <br><br><button class="btn" type="submit" style="width:100%">✅ کوڈ چیک کریں (Verify code)</button>
-        </form>
-        <p><a href="#" onclick="backToLoginUI();return false;">← واپس لاگ ان پر (Back to login)</a></p>
-        <p class="login-error" id="forgotMsg2"></p>
-      </div>
-      <div id="forgotStep3" style="display:none">
-        <form onsubmit="resetPasswordUI(event)">
-          <label>نیا پاس ورڈ (New password)</label>
-          <input id="forgotNewPass" type="password" required minlength="4">
-          <label>نیا پاس ورڈ دوبارہ (Repeat new password)</label>
-          <input id="forgotNewPass2" type="password" required minlength="4">
-          <br><br><button class="btn" type="submit" style="width:100%">💾 نیا پاس ورڈ محفوظ کریں (Save new password)</button>
-        </form>
-        <p class="login-error" id="forgotMsg3"></p>
-      </div>
-    </div>
+    <p class="hint" data-i18n="forgotNote">Forgot your password? Only the main Admin can reset it. Please contact the Admin.</p>
     <div class="demo-box">
-      <b>DEMO LOGIN — صرف جانچ کے لیے (demo only, change in Settings &gt; Users):</b><br>
+      <b data-i18n="demoLoginTitle">DEMO LOGIN — for testing only (change in Settings &gt; Users):</b><br>
       Admin: <code>admin / admin123</code><br>
       Editor: <code>editor / editor123</code><br>
       Qari: <code>qari / qari123</code>
     </div>
-    <p class="hint" style="margin-top:10px">یہ ڈیمو لاگ ان ہے، محفوظ پروڈکشن لاگ ان نہیں — تفصیل SETUP-GUIDE میں دیکھیں۔</p>
+    <p class="hint" style="margin-top:10px" data-i18n="demoLoginNote">This is a demo login, not a secure production login — see SETUP-GUIDE.md.</p>
+    <p style="text-align:center"><button class="btn secondary small" type="button" onclick="toggleLang()">اردو / English</button></p>
   </div>
 </div>
 
@@ -74,76 +42,127 @@
 <header class="topbar">
   <div>
     <img id="brandLogo" class="brand-logo" style="display:none" alt="Madrasa logo">
-    <h1 id="brandName">مدرسہ + مسجد — ایڈمن پینل</h1>
+    <h1 id="brandName">Madrasa + Masjid — Admin Panel</h1>
     <div class="sub" id="brandSub">Madrasa + Masjid Admin Panel</div>
     <div class="sub" id="brandAdminPhone"></div>
   </div>
+  <div class="top-search">
+    <input id="globalSearch" data-i18n-ph="searchPh" placeholder="Search students — name, father, class…" oninput="renderGlobalSearch()" autocomplete="off">
+    <select id="globalSearchClass" onchange="renderGlobalSearch()"><option value="" data-i18n="allClasses">All classes</option></select>
+    <div class="search-results" id="globalSearchResults" style="display:none"></div>
+  </div>
+  <div class="new-menu-wrap">
+    <button class="btn" id="newMenuBtn" onclick="toggleNewMenu(event)">+ <span data-i18n="new">New</span></button>
+    <div class="new-menu" id="newMenu" style="display:none">
+      <button onclick="newEntry('student')" data-i18n="newStudent">New Student</button>
+      <button onclick="newEntry('teacher')" data-i18n="newTeacher">New Teacher</button>
+      <button onclick="newEntry('fee')" data-i18n="newFee">New Fee Payment</button>
+      <button onclick="newEntry('transaction')" data-i18n="newTransaction">New Transaction</button>
+      <button onclick="newEntry('item')" data-i18n="newItem">New Budget Item</button>
+      <button onclick="newEntry('class')" data-i18n="newClass">New Class</button>
+      <button onclick="newEntry('user')" data-i18n="newUser">New User</button>
+    </div>
+  </div>
+  <button class="btn secondary" id="langToggle" onclick="toggleLang()">اردو</button>
   <span class="whoami" id="whoami"></span>
   <button class="sync-pill" id="syncPill" onclick="syncNowUI()" title="Sync now">Saved locally</button>
-  <button class="btn secondary" onclick="logoutUI()">لاگ آؤٹ (Logout)</button>
+  <button class="btn secondary" onclick="logoutUI()" data-i18n="logout">Log out</button>
 </header>
 
 <div class="layout">
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-head"><span class="brand-mark sm" aria-hidden="true">M</span><span class="sidebar-title">Admin Panel</span></div>
-    <button data-section="dashboard" class="active" onclick="showSection('dashboard')">ڈیش بورڈ (Dashboard)</button>
-    <button data-section="students" onclick="showSection('students')">طلبہ (Students)</button>
-    <button data-section="teachers" onclick="showSection('teachers')">اساتذہ / قاری صاحب (Teachers)</button>
-    <button data-section="attendance" onclick="showSection('attendance')">حاضری (Attendance)</button>
-    <button data-section="fees" onclick="showSection('fees')">فیس (Fees)</button>
-    <button data-section="accounts" onclick="showSection('accounts')">حسابات (Accounts)</button>
-    <button data-section="receipts" onclick="showSection('receipts')">رسیدیں (Receipts)</button>
-    <button data-section="history" onclick="showSection('history')">تاریخ / ریکارڈ (History)</button>
-    <button data-section="my-account" onclick="showSection('my-account')">میرا اکاؤنٹ (My Account)</button>
-    <button data-section="settings" id="sidebarSettingsBtn" onclick="showSection('settings')">سیٹنگز (Settings)</button>
+    <button data-section="dashboard" class="active" onclick="showSection('dashboard')" data-i18n="navDashboard">Dashboard</button>
+    <button data-section="my-class" onclick="showSection('my-class')" data-i18n="navMyClass">My Class</button>
+    <button data-section="students" onclick="showSection('students')" data-i18n="navStudents">Students</button>
+    <button data-section="teachers" onclick="showSection('teachers')" data-i18n="navTeachers">Teachers</button>
+    <button data-section="attendance" onclick="showSection('attendance')" data-i18n="navAttendance">Attendance</button>
+    <button data-section="sabaq" onclick="showSection('sabaq')" data-i18n="navSabaq">Sabaq &amp; Daily Report</button>
+    <button data-section="fees" onclick="showSection('fees')" data-i18n="navFees">Fees</button>
+    <button data-section="accounts" onclick="showSection('accounts')" data-i18n="navAccounts">Accounts</button>
+    <button data-section="receipts" onclick="showSection('receipts')" data-i18n="navReceipts">Receipts</button>
+    <button data-section="history" onclick="showSection('history')" data-i18n="navHistory">History</button>
+    <button data-section="reports" onclick="showSection('reports')" data-i18n="navReports">Reports &amp; Graphs</button>
+    <button data-section="settings" id="sidebarSettingsBtn" onclick="showSection('settings')" data-i18n="navSettings">Settings</button>
   </nav>
 
   <main class="main">
     <!-- DASHBOARD -->
     <section class="section active" id="section-dashboard">
-      <h2>ڈیش بورڈ (Dashboard)</h2>
-      <p class="hint">مدرسہ اور مسجد کے فنڈ الگ الگ ہیں — نیچے دونوں کا بیلنس الگ دکھایا گیا ہے۔</p>
+      <h2 data-i18n="navDashboard">Dashboard</h2>
+      <p class="hint" data-i18n="dashHint">Madrasa and Masjid funds are separate — both balances are shown separately below.</p>
       <div class="cards" id="dashCards"></div>
-      <div class="panel"><h3>تاریخ — خلاصہ (History summary)</h3><div id="dashHistory" class="log">—</div></div>
-      <div class="panel"><h3>ایڈمن رابطہ (Admin contact)</h3><div id="dashAdminContact" class="log">—</div></div>
+      <div class="panel"><h3 data-i18n="dashHistoryTitle">History — summary</h3><div id="dashHistory" class="log">—</div></div>
+      <div class="panel"><h3 data-i18n="dashAdminTitle">Admin contact</h3><div id="dashAdminContact" class="log">—</div></div>
       <div class="panel">
-        <h3>آج کی حاضری — خلاصہ (Today's attendance summary)</h3>
+        <h3 data-i18n="dashAttTitle">Today's attendance — summary</h3>
         <div id="dashAttendance" class="log">—</div>
       </div>
       <div class="panel">
-        <h3>فیس نوٹیفکیشن لاگ (Qari notification log — LOG ONLY)</h3>
-        <p class="hint">اصل push notification بعد میں بنے گی۔ یہاں صرف لاگ لکھا جاتا ہے — اسے "بھیج دیا گیا" نہ سمجھیں۔</p>
+        <h3 data-i18n="dashNotifTitle">Fee notification log (LOG ONLY)</h3>
+        <p class="hint" data-i18n="dashNotifHint">Real push notifications will be added later. This is only a log — do not treat it as "sent".</p>
         <div id="notifLog" class="log">—</div>
+      </div>
+    </section>
+
+    <!-- MY CLASS (Qari home — streamlined) -->
+    <section class="section" id="section-my-class">
+      <h2 data-i18n="myClassTitle">My Class</h2>
+      <p class="hint" data-i18n="myClassHint">Your class only — your students, today's attendance, Sabaq and your class graph.</p>
+      <div class="cards" id="myClassCards"></div>
+      <div class="panel"><h3 data-i18n="myClassAttChart">My class — attendance, last 14 days</h3><div class="chart-box"><canvas id="chartMyClass"></canvas></div><div class="chart-fallback" id="chartMyClassFallback" style="display:none"></div></div>
+      <div class="panel">
+        <h3 data-i18n="myClassToday">Today's attendance — quick mark</h3>
+        <div class="grid">
+          <div><label data-i18n="session">Session</label>
+            <select id="myAttSession" onchange="renderMyClassAttendance()">
+              <option value="1st" data-i18n="session1">1st Session</option>
+              <option value="2nd" data-i18n="session2">2nd Session</option>
+              <option value="Night" data-i18n="sessionNight">Night Session</option>
+            </select></div>
+        </div><br>
+        <div class="att-list" id="myAttList"></div><br>
+        <button class="btn" onclick="saveMyClassAttendance()" data-i18n="saveAttendance">Save attendance</button>
+        <span class="size-note" id="myAttSavedNote"></span>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="myClassStudents">My students</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thFather">Father</th><th data-i18n="thClass">Class</th><th data-i18n="thSessions">Sessions</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
+          <tbody id="myClassTable"></tbody>
+        </table></div>
       </div>
     </section>
 
     <!-- STUDENTS -->
     <section class="section" id="section-students">
-      <h2>طلبہ (Students)</h2>
-      <p class="hint">طالب علم کبھی ڈیلیٹ نہیں ہوتا — صرف اسٹیٹس بدلیں: Current / Hifz Completed / Left۔ نام پر کلک کر کے پروفائل دیکھیں۔</p>
+      <h2 data-i18n="navStudents">Students</h2>
+      <p class="hint" data-i18n="studentsHint">A student is never deleted — only the status changes: Current / Hifz Completed / Left. Click a name to open the profile.</p>
       <div class="panel">
-        <h3 id="studentFormTitle">نیا طالب علم شامل کریں (Add student)</h3>
+        <h3 id="studentFormTitle" data-i18n="addStudent">Add student</h3>
         <form id="studentForm" onsubmit="saveStudentUI(event)">
           <div class="grid">
-            <div><label>نام (Name) *</label><input id="stName" required></div>
-            <div><label>والد کا نام (Father's name)</label><input id="stFather"></div>
-            <div><label>عمر (Age)</label><input id="stAge" type="number" min="3" max="30"></div>
-            <div><label>جماعت / درجہ (Class)</label>
-              <select id="stClass"><option>ناظرہ</option><option>حفظ</option><option>قاعدہ</option><option>ترجمہ</option><option>دیگر</option></select></div>
-            <div><label>داخلہ تاریخ (Admission date)</label><input id="stAdmission" type="date"></div>
-            <div><label>ماہانہ فیس (Monthly fee, Rs)</label><input id="stFee" type="number" min="0" value="0"></div>
-            <div><label>والد کا فون (Father's phone)</label><input id="stPhone" dir="ltr" placeholder="03xx-xxxxxxx"></div>
-            <div><label>سرپرست فون (Guardian phone)</label><input id="stGuardian" dir="ltr" placeholder="03xx-xxxxxxx"></div>
-            <div class="full"><label>پتہ / مقام — گاؤں / شہر (Address / Location)</label><input id="stAddress" placeholder="گاؤں / محلہ / شہر"></div>
-            <div><label>داخلہ فیس رقم (Admission fee, Rs)</label><input id="stAdmFee" type="number" min="0" value="0"></div>
-            <div><label>داخلہ فیس وصول؟ (Admission fee collected?)</label><select id="stAdmPaid"><option value="No">No — باقی</option><option value="Yes">Yes — وصول</option></select></div>
-            <div><label>داخلہ فیس تاریخ (Admission fee date)</label><input id="stAdmDate" type="date"></div>
-            <div><label>اسٹیٹس (Status)</label>
-              <select id="stStatus"><option value="Current">Current — موجودہ</option><option value="HifzCompleted">Hifz Completed — حفظ مکمل</option><option value="Left">Left — چلا گیا</option></select></div>
-            <div><label>پہلا سیشن — First session</label><select id="stS1"><option value="yes">Yes</option><option value="no">No</option></select></div>
-            <div><label>دوسرا سیشن — Second session</label><select id="stS2"><option value="yes">Yes</option><option value="no">No</option></select></div>
-            <div><label>رات / شام کا سیشن — Night session</label><select id="stNight"><option value="no">No</option><option value="yes">Yes</option></select></div>
-            <div class="full"><label>طالب علم کی تصویر (Student photo — compressed to max 800px, JPEG 0.75)</label>
+            <div><label data-i18n="fName">Name *</label><input id="stName" required></div>
+            <div><label data-i18n="fFather">Father's name</label><input id="stFather"></div>
+            <div><label data-i18n="fAge">Age</label><input id="stAge" type="number" min="3" max="30"></div>
+            <div><label data-i18n="fClass">Class</label>
+              <select id="stClass"></select></div>
+            <div><label data-i18n="fInCharge">In-charge (Qari Sahab)</label>
+              <select id="stInCharge"><option value="">—</option></select></div>
+            <div><label data-i18n="fAdmission">Admission date</label><input id="stAdmission" type="date"></div>
+            <div><label data-i18n="fMonthlyFee">Monthly fee (Rs)</label><input id="stFee" type="number" min="0" value="0"></div>
+            <div><label data-i18n="fFatherPhone">Father's phone</label><input id="stPhone" dir="ltr" placeholder="03xx-xxxxxxx"></div>
+            <div><label data-i18n="fGuardianPhone">Guardian phone</label><input id="stGuardian" dir="ltr" placeholder="03xx-xxxxxxx"></div>
+            <div class="full"><label data-i18n="fAddress">Address / Location — village / city</label><input id="stAddress" placeholder="Village / area / city"></div>
+            <div><label data-i18n="fAdmFee">Admission fee (Rs)</label><input id="stAdmFee" type="number" min="0" value="0"></div>
+            <div><label data-i18n="fAdmPaid">Admission fee collected?</label><select id="stAdmPaid"><option value="No">No — pending</option><option value="Yes">Yes — received</option></select></div>
+            <div><label data-i18n="fAdmDate">Admission fee date</label><input id="stAdmDate" type="date"></div>
+            <div><label data-i18n="fStatus">Status</label>
+              <select id="stStatus"><option value="Current">Current</option><option value="HifzCompleted">Hifz Completed</option><option value="Left">Left</option></select></div>
+            <div><label data-i18n="fS1">1st session</label><select id="stS1"><option value="yes">Yes</option><option value="no">No</option></select></div>
+            <div><label data-i18n="fS2">2nd session</label><select id="stS2"><option value="yes">Yes</option><option value="no">No</option></select></div>
+            <div><label data-i18n="fNight">Night session</label><select id="stNight"><option value="no">No</option><option value="yes">Yes</option></select></div>
+            <div class="full"><label data-i18n="fPhoto">Student photo (compressed to max 800px, JPEG 0.75)</label>
               <input type="file" id="stPhoto" accept="image/*" onchange="photoPicked(this)">
               <div class="size-note" id="photoSizeNote"></div>
               <img id="photoPreview" class="photo-preview" style="display:none" alt="Student photo preview">
@@ -152,318 +171,351 @@
           </div>
           <br>
           <input type="hidden" id="stId">
-          <button class="btn" type="submit">محفوظ کریں (Save)</button>
-          <button class="btn secondary" type="button" onclick="resetStudentForm()">نیا فارم (Clear)</button>
+          <button class="btn" type="submit" data-i18n="save">Save</button>
+          <button class="btn secondary" type="button" onclick="resetStudentForm()" data-i18n="clear">Clear</button>
         </form>
       </div>
       <div class="toolbar">
-        <input id="stSearch" placeholder="تلاش — نام / والد / جماعت / مقام" oninput="renderStudents()">
+        <input id="stSearch" data-i18n-ph="stSearchPh" placeholder="Search — name / father / class / location" oninput="renderStudents()">
         <select id="stFilterStatus" onchange="renderStudents()">
-          <option value="">تمام اسٹیٹس (All)</option><option value="Current">Current</option><option value="HifzCompleted">Hifz Completed</option><option value="Left">Left</option>
+          <option value="" data-i18n="allStatuses">All statuses</option><option value="Current">Current</option><option value="HifzCompleted">Hifz Completed</option><option value="Left">Left</option>
         </select>
         <select id="stFilterClass" onchange="renderStudents()">
-          <option value="">تمام جماعتیں (All classes)</option><option>ناظرہ</option><option>حفظ</option><option>قاعدہ</option><option>ترجمہ</option><option>دیگر</option>
+          <option value="" data-i18n="allClasses">All classes</option>
         </select>
       </div>
       <div class="panel"><div class="table-wrap"><table>
-        <thead><tr><th>نام</th><th>والد</th><th>جماعت</th><th>سیشن</th><th>فیس</th><th>داخلہ فیس</th><th>اسٹیٹس</th><th>عمل</th></tr></thead>
+        <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thFather">Father</th><th data-i18n="thClass">Class</th><th data-i18n="thSessions">Sessions</th><th data-i18n="thFee">Fee</th><th data-i18n="thAdmFee">Admission fee</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
         <tbody id="studentsTable"></tbody>
       </table></div></div>
     </section>
 
     <!-- STUDENT PROFILE -->
     <section class="section" id="section-student-profile">
-      <h2>طالب علم کی پروفائل (Student Profile)</h2>
-      <button class="btn secondary" onclick="backToStudents()">← واپس طلبہ کی فہرست پر (Back to students)</button><br><br>
+      <h2 data-i18n="studentProfile">Student Profile</h2>
+      <button class="btn secondary" onclick="backToStudents()" data-i18n="backToStudents">← Back to students</button><br><br>
       <div class="panel" id="studentProfileView">—</div>
       <div class="panel">
-        <h3>گھر سے وصولی درج کریں (Add payment received from home)</h3>
+        <h3 data-i18n="attCalendarTitle">Attendance history — calendar</h3>
+        <div class="cal-nav"><button class="btn small secondary" onclick="calShift(-1)">←</button><span id="calTitle"></span><button class="btn small secondary" onclick="calShift(1)">→</button></div>
+        <div class="cal-legend"><span class="cal-dot present"></span> <span data-i18n="present">Present</span> &nbsp;<span class="cal-dot absent"></span> <span data-i18n="absent">Absent</span> &nbsp;<span class="cal-dot leave"></span> <span data-i18n="leave">Leave</span> &nbsp;<span class="cal-dot none"></span> <span data-i18n="noRecord">No record</span></div>
+        <div class="calendar" id="attCalendar"></div>
+        <div class="log" id="attCalSummary">—</div>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="sabaqHistoryTitle">Sabaq history — did the student recite?</h3>
+        <div class="log" id="sabaqHistory">—</div>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="ledgerTitle">Add payment received from home</h3>
         <form onsubmit="recordLedgerUI(event)">
           <div class="grid">
-            <div><label>طالب علم (Student)</label><select id="ledgerStudent" required></select></div>
-            <div><label>قسم (Type)</label><select id="ledgerType"><option value="PaymentFromHome">گھر سے وصولی (Payment from home)</option><option value="Fee">فیس (Fee)</option><option value="Advance">ایڈوانس (Advance)</option><option value="Refund">واپسی (Refund)</option></select></div>
-            <div><label>رقم (Amount, Rs) *</label><input id="ledgerAmount" type="number" min="0" required></div>
-            <div><label>طریقہ (Method)</label><select id="ledgerMethod"><option>Cash</option><option>Bank Transfer</option><option>JazzCash</option><option>EasyPaisa</option></select></div>
-            <div><label>تاریخ (Date)</label><input id="ledgerDate" type="date"></div>
-            <div class="full"><label>نوٹ (Note)</label><input id="ledgerNote" placeholder="کس مد میں؟"></div>
+            <div><label data-i18n="fStudent">Student</label><select id="ledgerStudent" required></select></div>
+            <div><label data-i18n="fType">Type</label><select id="ledgerType"><option value="PaymentFromHome">Payment from home</option><option value="Fee">Fee</option><option value="Advance">Advance</option><option value="Refund">Refund</option></select></div>
+            <div><label data-i18n="fAmount">Amount (Rs) *</label><input id="ledgerAmount" type="number" min="0" required></div>
+            <div><label data-i18n="fMethod">Method</label><select id="ledgerMethod"><option>Cash</option><option>Bank Transfer</option><option>JazzCash</option><option>EasyPaisa</option></select></div>
+            <div><label data-i18n="fDate">Date</label><input id="ledgerDate" type="date"></div>
+            <div class="full"><label data-i18n="fNote">Note</label><input id="ledgerNote" placeholder="For what?"></div>
           </div><br>
-          <button class="btn" type="submit">کھاتے میں درج کریں + رسید (Save to ledger &amp; receipt)</button>
+          <button class="btn" type="submit" data-i18n="saveLedger">Save to ledger &amp; receipt</button>
         </form>
       </div>
     </section>
 
     <!-- TEACHERS -->
     <section class="section" id="section-teachers">
-      <h2>اساتذہ / قاری صاحب (Teachers)</h2>
-      <p class="hint">استاد کبھی ڈیلیٹ نہیں ہوتا — صرف اسٹیٹس بدلیں: Active / Left۔ نام پر کلک کر کے پروفائل دیکھیں۔</p>
+      <h2 data-i18n="navTeachers">Teachers</h2>
+      <p class="hint" data-i18n="teachersHint">A teacher is never deleted — only the status changes: Active / Left. Click a name to open the profile.</p>
       <div class="panel">
-        <h3>استاد شامل کریں (Add teacher)</h3>
+        <h3 data-i18n="addTeacher">Add teacher</h3>
         <form id="teacherForm" onsubmit="saveTeacherUI(event)">
           <div class="grid">
-            <div><label>نام (Name) *</label><input id="tName" required></div>
-            <div><label>فون (Phone)</label><input id="tPhone" dir="ltr"></div>
-            <div><label>جماعت (Class)</label><input id="tClass" placeholder="حفظ / ناظرہ"></div>
-            <div><label>تاریخِ تقرری (Join date)</label><input id="tJoin" type="date"></div>
-            <div><label>ماہانہ تنخواہ (Monthly salary, Rs)</label><input id="tSalary" type="number" min="0" value="0"></div>
-            <div><label>اسٹیٹس (Status)</label><select id="tStatus"><option value="Active">Active</option><option value="Left">Left</option></select></div>
+            <div><label data-i18n="fName">Name *</label><input id="tName" required></div>
+            <div><label data-i18n="fPhone">Phone</label><input id="tPhone" dir="ltr"></div>
+            <div><label data-i18n="fClass">Class</label><select id="tClass"></select></div>
+            <div><label data-i18n="fJoin">Join date</label><input id="tJoin" type="date"></div>
+            <div><label data-i18n="fSalary">Monthly salary (Rs)</label><input id="tSalary" type="number" min="0" value="0"></div>
+            <div><label data-i18n="fStatus">Status</label><select id="tStatus"><option value="Active">Active</option><option value="Left">Left</option></select></div>
           </div><br>
           <input type="hidden" id="tId">
-          <button class="btn" type="submit">محفوظ کریں (Save)</button>
-          <button class="btn secondary" type="button" onclick="resetTeacherForm()">نیا فارم (Clear)</button>
+          <button class="btn" type="submit" data-i18n="save">Save</button>
+          <button class="btn secondary" type="button" onclick="resetTeacherForm()" data-i18n="clear">Clear</button>
         </form>
       </div>
       <div class="panel"><div class="table-wrap"><table>
-        <thead><tr><th>نام</th><th>فون</th><th>جماعت</th><th>تقرری</th><th>تنخواہ</th><th>اسٹیٹس</th><th>عمل</th></tr></thead>
+        <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thPhone">Phone</th><th data-i18n="thClass">Class</th><th data-i18n="thJoin">Join date</th><th data-i18n="thSalary">Salary</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
         <tbody id="teachersTable"></tbody>
       </table></div></div>
     </section>
 
     <!-- TEACHER PROFILE -->
     <section class="section" id="section-teacher-profile">
-      <h2>قاری صاحب کی پروفائل (Qari / Teacher Profile)</h2>
-      <button class="btn secondary" onclick="backToTeachers()">← واپس اساتذہ کی فہرست پر (Back to teachers)</button><br><br>
+      <h2 data-i18n="teacherProfile">Qari / Teacher Profile</h2>
+      <button class="btn secondary" onclick="backToTeachers()" data-i18n="backToTeachers">← Back to teachers</button><br><br>
       <div class="panel" id="teacherProfileView">—</div>
     </section>
 
     <!-- ATTENDANCE -->
     <section class="section" id="section-attendance">
-      <h2>حاضری (Attendance)</h2>
-      <div class="notice">طریقہ: پہلے تاریخ + سیشن چنیں۔ اس سیشن کے تمام طلبہ <b>پہلے سے حاضر (Present)</b> مانے جائیں گے — قاری صاحب کو صرف <b>غیر حاضر (Absent)</b> یا <b>چھٹی (Leave)</b> والوں پر ٹیپ کرنا ہے۔ رات کے سیشن میں صرف وہ طلبہ آئیں گے جن کا Night Session = Yes ہے۔</div>
+      <h2 data-i18n="navAttendance">Attendance</h2>
+      <div class="notice" data-i18n="attHow">How it works: first pick a date + session. All students in that session are counted Present by default — the Qari only taps Absent or Leave. The Night session lists only students with Night Session = Yes.</div>
       <div class="panel">
         <div class="grid">
-          <div><label>تاریخ (Date)</label><input id="attDate" type="date"></div>
-          <div><label>سیشن (Session)</label>
+          <div><label data-i18n="fDate">Date</label><input id="attDate" type="date"></div>
+          <div><label data-i18n="session">Session</label>
             <select id="attSession" onchange="renderAttendanceList()">
-              <option value="1st">پہلا سیشن — 1st Session</option>
-              <option value="2nd">دوسرا سیشن — 2nd Session</option>
-              <option value="Night">رات / شام — Night Session</option>
+              <option value="1st" data-i18n="session1">1st Session</option>
+              <option value="2nd" data-i18n="session2">2nd Session</option>
+              <option value="Night" data-i18n="sessionNight">Night Session</option>
             </select></div>
-          <div><label>حاضری لینے والا (Marked by)</label><input id="attBy" placeholder="قاری صاحب کا نام"></div>
+          <div><label data-i18n="attBy">Marked by</label><input id="attBy" placeholder="Qari Sahab's name"></div>
         </div><br>
-        <button class="btn secondary" type="button" onclick="renderAttendanceList()">فہرست دکھائیں (Show list)</button>
+        <button class="btn secondary" type="button" onclick="renderAttendanceList()" data-i18n="showList">Show list</button>
       </div>
       <div class="panel">
         <h3 id="attCount">—</h3>
         <div class="att-list" id="attList"></div><br>
-        <button class="btn" onclick="saveAttendanceUI()">حاضری محفوظ کریں (Save attendance)</button>
+        <button class="btn" onclick="saveAttendanceUI()" data-i18n="saveAttendance">Save attendance</button>
         <span class="size-note" id="attSavedNote"></span>
       </div>
+    </section>
+
+    <!-- SABAQ + DAILY REPORT -->
+    <section class="section" id="section-sabaq">
+      <h2 data-i18n="navSabaq">Sabaq &amp; Daily Report</h2>
+      <p class="hint" data-i18n="sabaqHint">Record each day whether the student recited the lesson (Sabaq) or not. The daily report below shows who recited and who did not.</p>
       <div class="panel">
-        <h3>سبق / سنایا ہوا (Sabaq — Qari only)</h3>
+        <h3 data-i18n="sabaqTodayTitle">Today's Sabaq report</h3>
+        <div class="grid">
+          <div><label data-i18n="fDate">Date</label><input id="sabaqReportDate" type="date" onchange="renderSabaqReport()"></div>
+        </div><br>
+        <div class="table-wrap"><table>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thClass">Class</th><th data-i18n="thRecited">Recited?</th><th data-i18n="thWhat">What was recited</th><th data-i18n="thAction">Action</th></tr></thead>
+          <tbody id="sabaqReportTable"></tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="sabaqAddTitle">Record Sabaq</h3>
         <form onsubmit="saveSabaqUI(event)">
           <div class="grid">
-            <div><label>طالب علم (Student)</label><select id="sabaqStudent" required></select></div>
-            <div><label>تاریخ (Date)</label><input id="sabaqDate" type="date"></div>
-            <div><label>آج کیا سنایا (What was recited)</label><input id="sabaqText" placeholder="مثلاً: پارہ 5، صفحہ 10" required></div>
-            <div><label>مقدار (Amount / pages)</label><input id="sabaqAmount" placeholder="مثلاً: 2 صفحے"></div>
-            <div class="full"><label>استاد کی رائے (Teacher note)</label><input id="sabaqNote"></div>
+            <div><label data-i18n="fStudent">Student</label><select id="sabaqStudent" required></select></div>
+            <div><label data-i18n="fDate">Date</label><input id="sabaqDate" type="date"></div>
+            <div><label data-i18n="thRecited">Recited?</label><select id="sabaqRecited"><option value="Yes">Yes — recited</option><option value="No">No — did not recite</option></select></div>
+            <div><label data-i18n="sabaqWhat">What was recited</label><input id="sabaqText" placeholder="e.g. Para 5, page 10"></div>
+            <div><label data-i18n="sabaqAmount">Amount / pages</label><input id="sabaqAmount" placeholder="e.g. 2 pages"></div>
+            <div class="full"><label data-i18n="sabaqNote">Teacher note</label><input id="sabaqNote"></div>
           </div><br>
-          <button class="btn" type="submit">سبق محفوظ کریں (Save sabaq)</button>
+          <button class="btn" type="submit" data-i18n="saveSabaq">Save Sabaq</button>
         </form>
       </div>
     </section>
 
     <!-- FEES -->
     <section class="section" id="section-fees">
-      <h2>فیس (Fees)</h2>
-      <p class="hint">فیس ادا کرتے ہی رسید نمبر خود بنے گا (مثال: MSD-2026-0001) اور رسید پرنٹ ہو سکے گی۔</p>
+      <h2 data-i18n="navFees">Fees</h2>
+      <p class="hint" data-i18n="feesHint">When a fee is paid, a receipt number is generated automatically (e.g. MSD-2026-0001) and the receipt can be printed.</p>
       <div class="panel">
-        <h3>فیس وصول کریں (Record fee payment)</h3>
+        <h3 data-i18n="feeAddTitle">Record fee payment</h3>
         <form onsubmit="recordFeeUI(event)">
           <div class="grid">
-            <div><label>طالب علم (Student) *</label><select id="feeStudent" required></select></div>
-            <div><label>مہینہ (Month)</label><input id="feeMonth" type="month" required></div>
-            <div><label>رقم (Amount, Rs) *</label><input id="feeAmount" type="number" min="0" required></div>
-            <div><label>طریقہ (Method)</label><select id="feeMethod"><option>Cash</option><option>Bank Transfer</option><option>JazzCash</option><option>EasyPaisa</option></select></div>
-            <div><label>تاریخ (Date)</label><input id="feeDate" type="date"></div>
+            <div><label data-i18n="fStudent">Student *</label><select id="feeStudent" required></select></div>
+            <div><label data-i18n="fMonth">Month</label><input id="feeMonth" type="month" required></div>
+            <div><label data-i18n="fAmount">Amount (Rs) *</label><input id="feeAmount" type="number" min="0" required></div>
+            <div><label data-i18n="fMethod">Method</label><select id="feeMethod"><option>Cash</option><option>Bank Transfer</option><option>JazzCash</option><option>EasyPaisa</option></select></div>
+            <div><label data-i18n="fDate">Date</label><input id="feeDate" type="date"></div>
           </div><br>
-          <button class="btn" type="submit">فیس + رسید محفوظ کریں (Save fee &amp; receipt)</button>
+          <button class="btn" type="submit" data-i18n="saveFee">Save fee &amp; receipt</button>
         </form>
       </div>
       <div class="panel" id="receiptPanel" style="display:none">
-        <h3>رسید (Receipt) — پرنٹ کریں</h3>
+        <h3 data-i18n="receiptTitle">Receipt — print it</h3>
         <div class="receipt" id="receiptView"></div><br>
-        <button class="btn secondary no-print" onclick="window.print()">پرنٹ (Print)</button>
+        <button class="btn secondary no-print" onclick="window.print()" data-i18n="print">Print</button>
       </div>
-      <div class="panel"><h3>فیس کی فہرست (Fees list)</h3><div class="table-wrap"><table>
-        <thead><tr><th>رسید نمبر</th><th>تاریخ</th><th>طالب علم</th><th>مہینہ</th><th>رقم</th><th>اسٹیٹس</th></tr></thead>
+      <div class="panel"><h3 data-i18n="feesListTitle">Fees list</h3><div class="table-wrap"><table>
+        <thead><tr><th data-i18n="thReceipt">Receipt No.</th><th data-i18n="thDate">Date</th><th data-i18n="thName">Name</th><th data-i18n="thMonth">Month</th><th data-i18n="thAmount">Amount</th><th data-i18n="thStatus">Status</th></tr></thead>
         <tbody id="feesTable"></tbody>
       </table></div></div>
     </section>
 
     <!-- ACCOUNTS -->
     <section class="section" id="section-accounts">
-      <h2>حسابات (Accounts) — مدرسہ اور مسجد الگ الگ</h2>
-      <p class="hint">ہر لین دین کی رسید بنتی ہے۔ مدرسہ فنڈ اور مسجد فنڈ کبھی آپس میں نہ ملائیں۔</p>
+      <h2 data-i18n="accountsTitle">Accounts — Madrasa and Masjid separate</h2>
+      <p class="hint" data-i18n="accountsHint">Every transaction gets a receipt. Never mix the Madrasa fund with the Masjid fund. Income = money coming in (fees, donations/chanda, payment from home). Expense = money going out (salary, electricity, books, food, construction). Advances to teachers are recorded here too, linked to the teacher.</p>
       <div class="cards">
-        <div class="card madrasa"><div class="label">مدرسہ بیلنس (Madrasa balance)</div><div class="value green" id="balMadrasa">Rs 0</div></div>
-        <div class="card masjid"><div class="label">مسجد بیلنس (Masjid balance)</div><div class="value green" id="balMasjid">Rs 0</div></div>
+        <div class="card madrasa"><div class="label" data-i18n="balMadrasa">Madrasa balance</div><div class="value green" id="balMadrasa">Rs 0</div></div>
+        <div class="card masjid"><div class="label" data-i18n="balMasjid">Masjid balance</div><div class="value green" id="balMasjid">Rs 0</div></div>
       </div>
       <div class="panel">
-        <h3>آئٹم / بجٹ (Items &amp; Budget — فنڈ کس آئٹم پر لگا؟)</h3>
+        <h3 data-i18n="itemsTitle">Items &amp; Budget — which item was the fund spent on?</h3>
         <form onsubmit="saveItemUI(event)">
           <div class="grid">
-            <div><label>آئٹم (Item) *</label><input id="itemName" placeholder="کتابیں / بجلی / کھانا / تعمیر…" required></div>
-            <div><label>فنڈ (Fund)</label><select id="itemFund"><option value="Madrasa">Madrasa</option><option value="Masjid">Masjid</option></select></div>
-            <div><label>مختص رقم (Allocated amount, Rs)</label><input id="itemAllocated" type="number" min="0" value="0"></div>
-            <div><label>خرچ شدہ (Spent, Rs)</label><input id="itemSpent" type="number" min="0" value="0"></div>
-            <div><label>اسٹیٹس</label><select id="itemStatus"><option value="Active">Active</option><option value="Closed">Closed</option></select></div>
+            <div><label data-i18n="fItem">Item *</label><input id="itemName" placeholder="Books / electricity / food / construction…" required></div>
+            <div><label data-i18n="fFund">Fund</label><select id="itemFund"><option value="Madrasa">Madrasa</option><option value="Masjid">Masjid</option></select></div>
+            <div><label data-i18n="fAllocated">Allocated amount (Rs)</label><input id="itemAllocated" type="number" min="0" value="0"></div>
+            <div><label data-i18n="fSpent">Spent (Rs)</label><input id="itemSpent" type="number" min="0" value="0"></div>
+            <div><label data-i18n="fStatus">Status</label><select id="itemStatus"><option value="Active">Active</option><option value="Closed">Closed</option></select></div>
           </div><br>
           <input type="hidden" id="itemId">
-          <button class="btn" type="submit">آئٹم محفوظ کریں (Save item)</button>
+          <button class="btn" type="submit" data-i18n="saveItem">Save item</button>
         </form>
         <br>
         <div class="table-wrap"><table>
-          <thead><tr><th>آئٹم</th><th>فنڈ</th><th>مختص (Allocated)</th><th>خرچ (Spent)</th><th>باقی (Remaining)</th><th>اسٹیٹس</th></tr></thead>
+          <thead><tr><th data-i18n="thItem">Item</th><th data-i18n="fFund">Fund</th><th data-i18n="thAllocated">Allocated</th><th data-i18n="thSpent">Spent</th><th data-i18n="thRemaining">Remaining</th><th data-i18n="thStatus">Status</th></tr></thead>
           <tbody id="itemsTable"></tbody>
         </table></div>
       </div>
       <div class="panel">
-        <h3>لین دین درج کریں (Add transaction — income / expense / advance)</h3>
+        <h3 data-i18n="txAddTitle">Add transaction — income / expense / advance</h3>
         <form onsubmit="recordTransactionUI(event)">
           <div class="grid">
-            <div><label>فنڈ (Fund) *</label><select id="txFund"><option value="Madrasa">مدرسہ (Madrasa)</option><option value="Masjid">مسجد (Masjid)</option></select></div>
-            <div><label>قسم (Type) *</label><select id="txType"><option value="Income">آمدنی (Income)</option><option value="Expense">خرچ (Expense)</option></select></div>
-            <div><label>زمرہ (Category)</label><input id="txCategory" placeholder="فیس / چندہ / ایڈوانس / بجلی / کتابیں…"></div>
-            <div><label>آئٹم (Item — کس چیز پر؟)</label><input id="txItem" placeholder="مثلاً: کتابیں"></div>
-            <div><label>فنڈ اس آئٹم پر مختص؟ (Allocated to this item?)</label><select id="txAllocated"><option value="">—</option><option value="Yes">Yes — مختص</option><option value="No">No — مختص نہیں</option></select></div>
-            <div><label>مختص رقم (Allocated amount, Rs)</label><input id="txAllocAmount" type="number" min="0" value="0"></div>
-            <div><label>استاد (Teacher — تنخواہ / ایڈوانس کے لیے)</label><select id="txTeacher"><option value="">—</option></select></div>
-            <div><label>رقم (Amount, Rs) *</label><input id="txAmount" type="number" min="0" required></div>
-            <div><label>تاریخ (Date)</label><input id="txDate" type="date"></div>
-            <div class="full"><label>تفصیل (Description)</label><input id="txDesc" placeholder="کس چیز کے لیے؟"></div>
+            <div><label data-i18n="fFund">Fund *</label><select id="txFund"><option value="Madrasa">Madrasa</option><option value="Masjid">Masjid</option></select></div>
+            <div><label data-i18n="fType">Type *</label><select id="txType"><option value="Income">Income</option><option value="Expense">Expense</option></select></div>
+            <div><label data-i18n="fCategory">Category</label><input id="txCategory" placeholder="Fee / donation / advance / electricity / books…"></div>
+            <div><label data-i18n="fItem">Item — spent on what?</label><input id="txItem" placeholder="e.g. Books"></div>
+            <div><label data-i18n="fAllocatedQ">Allocated to this item?</label><select id="txAllocated"><option value="">—</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <div><label data-i18n="fAllocated">Allocated amount (Rs)</label><input id="txAllocAmount" type="number" min="0" value="0"></div>
+            <div><label data-i18n="fTeacher">Teacher — for salary / advance</label><select id="txTeacher"><option value="">—</option></select></div>
+            <div><label data-i18n="fAmount">Amount (Rs) *</label><input id="txAmount" type="number" min="0" required></div>
+            <div><label data-i18n="fDate">Date</label><input id="txDate" type="date"></div>
+            <div class="full"><label data-i18n="fDesc">Description</label><input id="txDesc" placeholder="For what?"></div>
           </div><br>
-          <button class="btn" type="submit">لین دین محفوظ کریں (Save transaction)</button>
+          <button class="btn" type="submit" data-i18n="saveTx">Save transaction</button>
         </form>
       </div>
       <div class="panel"><div class="toolbar">
-        <select id="txFilterFund" onchange="renderAccounts()"><option value="">دونوں فنڈ (Both funds)</option><option value="Madrasa">Madrasa</option><option value="Masjid">Masjid</option></select>
+        <select id="txFilterFund" onchange="renderAccounts()"><option value="" data-i18n="bothFunds">Both funds</option><option value="Madrasa">Madrasa</option><option value="Masjid">Masjid</option></select>
       </div><div class="table-wrap"><table>
-        <thead><tr><th>تاریخ</th><th>فنڈ</th><th>قسم</th><th>زمرہ</th><th>آئٹم</th><th>مختص؟</th><th>رقم</th><th>تفصیل</th><th>رسید نمبر</th></tr></thead>
+        <thead><tr><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="fType">Type</th><th data-i18n="fCategory">Category</th><th data-i18n="thItem">Item</th><th data-i18n="fAllocatedQ">Allocated?</th><th data-i18n="thAmount">Amount</th><th data-i18n="fDesc">Description</th><th data-i18n="thReceipt">Receipt No.</th></tr></thead>
         <tbody id="accountsTable"></tbody>
       </table></div></div>
     </section>
 
     <!-- RECEIPTS -->
     <section class="section" id="section-receipts">
-      <h2>رسیدیں (Receipts)</h2>
-      <p class="hint">ہر لین دین / فیس کی رسید یہاں محفوظ ہے۔</p>
+      <h2 data-i18n="navReceipts">Receipts</h2>
+      <p class="hint" data-i18n="receiptsHint">Every transaction / fee receipt is saved here.</p>
       <div class="panel"><div class="table-wrap"><table>
-        <thead><tr><th>رسید نمبر</th><th>تاریخ</th><th>فنڈ</th><th>رقم</th><th>مقصد (Purpose)</th></tr></thead>
+        <thead><tr><th data-i18n="thReceipt">Receipt No.</th><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="thAmount">Amount</th><th data-i18n="thPurpose">Purpose</th></tr></thead>
         <tbody id="receiptsTable"></tbody>
       </table></div></div>
     </section>
 
     <!-- HISTORY -->
     <section class="section" id="section-history">
-      <h2>تاریخ / ریکارڈ (History &amp; Reports)</h2>
-      <p class="hint">کبھی کوئی ریکارڈ ڈیلیٹ نہیں ہوتا — صرف اسٹیٹس بدلتا ہے، اس لیے پوری تاریخ یہاں محفوظ رہتی ہے۔</p>
+      <h2 data-i18n="navHistory">History &amp; Reports</h2>
+      <p class="hint" data-i18n="historyHint">No record is ever deleted — only the status changes, so the full history stays here.</p>
       <div class="toolbar">
-        <label>سال (Year)</label><input id="histYear" type="number" placeholder="2026" style="max-width:120px" oninput="renderHistory()">
-        <label>مقام (Location)</label><input id="histLocation" list="histLocations" placeholder="گاؤں / شہر" oninput="renderHistory()">
+        <label data-i18n="fYear">Year</label><input id="histYear" type="number" placeholder="2026" style="max-width:120px" oninput="renderHistory()">
+        <label data-i18n="fLocation">Location</label><input id="histLocation" list="histLocations" placeholder="Village / city" oninput="renderHistory()">
         <datalist id="histLocations"></datalist>
       </div>
       <div class="cards" id="histCounts"></div>
       <div class="panel"><div class="table-wrap"><table>
-        <thead><tr><th>نام</th><th>والد</th><th>والد کا فون</th><th>سرپرست فون</th><th>مقام</th><th>جماعت</th><th>داخلہ</th><th>اسٹیٹس</th></tr></thead>
+        <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thFather">Father</th><th data-i18n="thFatherPhone">Father's phone</th><th data-i18n="thGuardianPhone">Guardian phone</th><th data-i18n="thLocation">Location</th><th data-i18n="thClass">Class</th><th data-i18n="thAdmission">Admission</th><th data-i18n="thStatus">Status</th></tr></thead>
         <tbody id="historyTable"></tbody>
       </table></div></div>
     </section>
 
-    <!-- MY ACCOUNT (v3 — all roles: add / verify OWN email) -->
-    <section class="section" id="section-my-account">
-      <h2>میرا اکاؤنٹ (My Account)</h2>
-      <p class="hint">اپنی ای میل یہاں شامل کریں — پاس ورڈ ری سیٹ اور فیس نوٹیفکیشن کے لیے استعمال ہوگی۔</p>
-      <div class="panel">
-        <h3>ای میل شامل کریں (Add Email)</h3>
-        <div class="log" id="myEmailStatus">—</div><br>
-        <form onsubmit="saveMyEmailUI(event)">
-          <div class="grid">
-            <div class="full"><label>ای میل (Email) *</label><input id="myEmailInput" type="email" dir="ltr" required placeholder="name@example.com"></div>
-          </div><br>
-          <button class="btn" type="submit">ای میل محفوظ کریں (Save email)</button>
-        </form>
-      </div>
-      <div class="panel" id="emailVerifyBox">
-        <h3>ای میل کی تصدیق کریں (Verify Email)</h3>
-        <p class="hint">6 ہندسوں والا کوڈ آپ کی ای میل پر بھیجا جائے گا۔ ڈیمو موڈ میں کوڈ اسکرین پر دکھایا جائے گا۔</p>
-        <button class="btn secondary" type="button" onclick="requestEmailVerificationUI()">تصدیقی کوڈ بھیجیں (Send verification code)</button><br><br>
-        <form onsubmit="verifyEmailUI(event)">
-          <div class="grid">
-            <div><label>6 ہندسوں والا کوڈ (6-digit code)</label><input id="emailVerifyCode" dir="ltr" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="123456"></div>
-          </div><br>
-          <button class="btn" type="submit">تصدیق کریں (Verify)</button>
-        </form>
-        <p class="size-note" id="emailVerifyMsg"></p>
+    <!-- REPORTS & GRAPHS -->
+    <section class="section" id="section-reports">
+      <h2 data-i18n="navReports">Reports &amp; Graphs</h2>
+      <p class="hint" data-i18n="reportsHint">Live graphs from the Google Sheet data.</p>
+      <div class="charts-grid">
+        <div class="panel"><h3 data-i18n="chAtt">Attendance — last 14 days (Present / Absent / Leave)</h3><div class="chart-box"><canvas id="chartAtt"></canvas></div><div class="chart-fallback" id="chartAttFallback" style="display:none"></div></div>
+        <div class="panel"><h3 data-i18n="chClass">Students by class</h3><div class="chart-box"><canvas id="chartClass"></canvas></div><div class="chart-fallback" id="chartClassFallback" style="display:none"></div></div>
+        <div class="panel"><h3 data-i18n="chFees">Fees collected by month</h3><div class="chart-box"><canvas id="chartFees"></canvas></div><div class="chart-fallback" id="chartFeesFallback" style="display:none"></div></div>
+        <div class="panel"><h3 data-i18n="chFunds">Income vs Expense by fund</h3><div class="chart-box"><canvas id="chartFunds"></canvas></div><div class="chart-fallback" id="chartFundsFallback" style="display:none"></div></div>
+        <div class="panel"><h3 data-i18n="chAdm">New admissions by month</h3><div class="chart-box"><canvas id="chartAdm"></canvas></div><div class="chart-fallback" id="chartAdmFallback" style="display:none"></div></div>
       </div>
     </section>
 
     <!-- SETTINGS -->
     <section class="section" id="section-settings">
-      <h2>سیٹنگز (Settings) — صرف ایڈمن (Admin only)</h2>
+      <h2 data-i18n="settingsTitle">Settings — Admin only</h2>
       <div class="panel">
-        <h3>مدرسہ / مسجد کی معلومات (Branding — white-label)</h3>
-        <p class="hint">یہی نام، لوگو اور رابطہ ہر جگہ دکھائی دیتا ہے۔ دوسرے مدرسے کو بیچتے وقت صرف یہی بدلنا ہے — کوڈ میں نام لکھا نہیں ہے۔</p>
+        <h3 data-i18n="brandTitle">Madrasa / Masjid details (white-label)</h3>
+        <p class="hint" data-i18n="brandHint">This name, logo and contact are shown everywhere. To sell to another Madrasa, only change these — no name is hard-coded in the code.</p>
         <div class="grid">
-          <div><label>مدرسے کا نام (Madrasa name) *</label><input id="setMadrasaName"></div>
-          <div><label>مسجد کا نام (Masjid name)</label><input id="setMasjidName"></div>
-          <div><label>ایڈمن کا نام (Admin name)</label><input id="setAdminName"></div>
-          <div><label>ایڈمن فون (Admin phone) *</label><input id="setAdminPhone" dir="ltr" placeholder="03xx-xxxxxxx"></div>
-          <div><label>ایڈمن واٹس ایپ (Admin WhatsApp)</label><input id="setAdminWhatsApp" dir="ltr" placeholder="923xx-xxxxxxx"></div>
-          <div class="full"><label>پتہ (Address)</label><input id="setAddress"></div>
-          <div class="full"><label>لوگو URL (Logo URL — ImgBB / hosted image link)</label><input id="setLogoURL" dir="ltr" placeholder="https://…/logo.png"></div>
-          <div><label>رنگ (Theme colour)</label><input id="setThemeColor" type="color" value="#4f46e5"></div>
+          <div><label data-i18n="fMadrasaName">Madrasa name *</label><input id="setMadrasaName"></div>
+          <div><label data-i18n="fMasjidName">Masjid name</label><input id="setMasjidName"></div>
+          <div><label data-i18n="fAdminName">Admin name</label><input id="setAdminName"></div>
+          <div><label data-i18n="fAdminPhone">Admin phone *</label><input id="setAdminPhone" dir="ltr" placeholder="03xx-xxxxxxx"></div>
+          <div><label data-i18n="fAdminWhats">Admin WhatsApp</label><input id="setAdminWhatsApp" dir="ltr" placeholder="923xx-xxxxxxx"></div>
+          <div class="full"><label data-i18n="fAddress">Address</label><input id="setAddress"></div>
+          <div class="full"><label data-i18n="fLogo">Logo URL (ImgBB / hosted image link)</label><input id="setLogoURL" dir="ltr" placeholder="https://…/logo.png"></div>
+          <div><label data-i18n="fTheme">Theme colour</label><input id="setThemeColor" type="color" value="#4f46e5"></div>
         </div>
         <p class="size-note" id="adminContactNote"></p>
       </div>
       <div class="panel">
-        <h3>کنکشن (Connection)</h3>
+        <h3 data-i18n="classesTitle">Classes — define class names &amp; levels</h3>
+        <p class="hint" data-i18n="classesHint">Define each class once, e.g. Qaida, Nazra, Hifz, Alim-e-Deen Level 1–8, Fazil. Each level is a separate class, so Alim-e-Deen Level 1 and Level 2 never mix.</p>
+        <form onsubmit="saveClassUI(event)">
+          <div class="grid">
+            <div><label data-i18n="fClassName">Class name *</label><input id="className" placeholder="e.g. Alim-e-Deen" required></div>
+            <div><label data-i18n="fLevel">Level</label><input id="classLevel" placeholder="e.g. Level 1 (leave blank if none)"></div>
+            <div class="full"><label data-i18n="fDesc">Description</label><input id="classDesc" placeholder="e.g. Alim course — year 1"></div>
+            <div><label data-i18n="fStatus">Status</label><select id="classStatus"><option value="Active">Active</option><option value="Closed">Closed</option></select></div>
+          </div><br>
+          <input type="hidden" id="classId">
+          <button class="btn" type="submit" data-i18n="saveClass">Save class</button>
+        </form>
+        <br>
+        <div class="table-wrap"><table>
+          <thead><tr><th data-i18n="fClassName">Class name</th><th data-i18n="fLevel">Level</th><th data-i18n="fDesc">Description</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
+          <tbody id="classesTable"></tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="connTitle">Connection</h3>
         <div class="grid">
-          <div class="full"><label>Apps Script Web App URL (Code.gs deploy کرنے کے بعد یہاں پیسٹ کریں)</label>
+          <div class="full"><label data-i18n="fApiUrl">Apps Script Web App URL (paste after deploying Code.gs)</label>
             <input id="setApiUrl" dir="ltr" placeholder="https://script.google.com/macros/s/AKfyc.../exec"></div>
-          <div class="full"><label>ImgBB API Key (تصاویر ہوسٹ کرنے کے لیے — https://api.imgbb.com/ سے مفت کلید)</label>
+          <div class="full"><label data-i18n="fImgbb">ImgBB API Key (for hosting photos — free key at https://api.imgbb.com/)</label>
             <input id="setImgbb" dir="ltr" placeholder="paste ImgBB API key here"></div>
         </div><br>
-        <button class="btn" id="saveSettingsBtn" onclick="saveSettingsUI()">سیٹنگز محفوظ کریں (Save settings)</button>
-        <button class="btn secondary" onclick="syncNowUI()">ابھی Sync کریں (Sync now)</button>
+        <button class="btn" id="saveSettingsBtn" onclick="saveSettingsUI()" data-i18n="saveSettings">Save settings</button>
+        <button class="btn secondary" onclick="syncNowUI()" data-i18n="syncNow">Sync now</button>
         <p class="size-note" id="settingsNote"></p>
       </div>
       <div class="panel" id="usersPanel">
-        <h3>یوزرز / رول (Users &amp; Roles — Admin only)</h3>
-        <p class="hint">ایڈمن Editor کی رسائی دے سکتا ہے، Qari بنا سکتا ہے، اور کسی بھی یوزر کو Disable کر سکتا ہے۔ Editor Settings / Users نہیں بدل سکتا۔ Qari صرف اپنی جماعت کی حاضری + سبق کر سکتا ہے۔</p>
+        <h3 data-i18n="usersTitle">Users &amp; Roles — Admin only</h3>
+        <p class="hint" data-i18n="usersHint">Only the main Admin creates users, gives access and sets or resets passwords. Users cannot change their own password. For a Qari, link the teacher record so he sees only his own class.</p>
         <form onsubmit="saveUserUI(event)">
           <div class="grid">
-            <div><label>نام (Name) *</label><input id="newUserName" required></div>
-            <div><label>یوزر نیم (Username) *</label><input id="newUserUsername" required></div>
-            <div><label>پاس ورڈ (Password) *</label><input id="newUserPassword" type="password" required></div>
-            <div><label>رول (Role)</label><select id="newUserRole"><option value="Editor">Editor</option><option value="Qari">Qari</option><option value="Admin">Admin</option></select></div>
-            <div><label>فون (Phone)</label><input id="newUserPhone" dir="ltr"></div>
-            <div><label>ای میل (Email)</label><input id="newUserEmail" type="email" dir="ltr" placeholder="name@example.com"></div>
+            <div><label data-i18n="fName">Name *</label><input id="newUserName" required></div>
+            <div><label data-i18n="username">Username *</label><input id="newUserUsername" required></div>
+            <div><label data-i18n="password">Password *</label><input id="newUserPassword" type="password" required></div>
+            <div><label data-i18n="fRole">Role</label><select id="newUserRole" onchange="toggleUserTeacher()"><option value="Editor">Editor</option><option value="Qari">Qari</option><option value="Admin">Admin</option></select></div>
+            <div id="userTeacherWrap" style="display:none"><label data-i18n="fLinkedTeacher">Linked teacher (Qari record)</label><select id="newUserTeacher"><option value="">—</option></select></div>
+            <div><label data-i18n="fPhone">Phone</label><input id="newUserPhone" dir="ltr"></div>
+            <div><label data-i18n="fEmail">Email</label><input id="newUserEmail" type="email" dir="ltr" placeholder="name@example.com"></div>
           </div><br>
-          <button class="btn" type="submit">یوزر بنائیں (Create user)</button>
+          <button class="btn" type="submit" data-i18n="createUser">Create user</button>
+          <button class="btn secondary" type="button" onclick="genPasswordUI()" data-i18n="genPassword">Generate password</button>
         </form>
         <br>
-        <br>
-        <h3>کسی یوزر کی ای میل بدلیں (Set a user's email — Admin only)</h3>
+        <h3 data-i18n="adminEmailTitle">Set a user's email (Admin only)</h3>
         <form onsubmit="saveAdminEmailUI(event)">
           <div class="grid">
-            <div><label>یوزر (User)</label><select id="adminEmailUser"></select></div>
-            <div><label>ای میل (Email) *</label><input id="adminEmailInput" type="email" dir="ltr" required placeholder="name@example.com"></div>
+            <div><label data-i18n="fUser">User</label><select id="adminEmailUser"></select></div>
+            <div><label data-i18n="fEmail">Email *</label><input id="adminEmailInput" type="email" dir="ltr" required placeholder="name@example.com"></div>
           </div><br>
-          <button class="btn secondary" type="submit">ای میل محفوظ کریں (Save email)</button>
+          <button class="btn secondary" type="submit" data-i18n="saveEmail">Save email</button>
           <span class="size-note" id="adminEmailNote"></span>
         </form>
         <br>
         <div class="table-wrap"><table>
-          <thead><tr><th>نام</th><th>یوزر نیم</th><th>رول</th><th>فون</th><th>ای میل (Email)</th><th>تصدیق (Verified)</th><th>اسٹیٹس</th><th>عمل</th></tr></thead>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="username">Username</th><th data-i18n="fRole">Role</th><th data-i18n="fLinkedTeacher">Linked teacher</th><th data-i18n="thPhone">Phone</th><th data-i18n="fEmail">Email</th><th data-i18n="thVerified">Verified</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
           <tbody id="usersTable"></tbody>
         </table></div>
       </div>
       <div class="panel">
-        <h3>مقامی ڈیٹا (Local data — order.js)</h3>
-        <p class="hint">تمام ڈیٹا پہلے اس ڈیوائس پر محفوظ ہوتا ہے، پھر Sheet سے sync ہوتا ہے۔ یہی فائل بعد میں Electron / موبائل ایپ میں بھی کام کرے گی۔</p>
+        <h3 data-i18n="localTitle">Local data (order.js)</h3>
+        <p class="hint" data-i18n="localHint">All data is saved on this device first, then synced to the Sheet. The same file will work in the Electron / mobile app later.</p>
         <div class="log" id="localInfo">—</div><br>
-        <button class="btn danger" onclick="if(confirm('کیا آپ واقعی مقامی ڈیٹا صاف کرنا چاہتے ہیں؟')){localStorage.clear();location.reload();}">مقامی ڈیٹا صاف کریں (Clear local data)</button>
+        <button class="btn danger" onclick="if(confirm('Clear local data?')){localStorage.clear();location.reload();}" data-i18n="clearLocal">Clear local data</button>
       </div>
     </section>
   </main>

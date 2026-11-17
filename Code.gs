@@ -36,15 +36,16 @@ const SEED_FLAG = 'mm_seeded_v3';
 // the code is emailed with MailApp and NEVER returned to the browser.
 // Exact tab names and columns — do not rename, the frontend depends on them.
 const TABS = {
-  Students: ['StudentID','Name','FatherName','Age','Class','Session1','Session2','NightSession','AdmissionDate','MonthlyFee','Status','FatherPhone','GuardianPhone','Address','AdmissionFeeAmount','AdmissionFeePaid','AdmissionFeeDate','AdmissionFeeReceiptNo','ClassHistory','PhotoURL'],
+  Students: ['StudentID','Name','FatherName','Age','Class','Session1','Session2','NightSession','AdmissionDate','MonthlyFee','Status','FatherPhone','GuardianPhone','Address','AdmissionFeeAmount','AdmissionFeePaid','AdmissionFeeDate','AdmissionFeeReceiptNo','ClassHistory','PhotoURL','InCharge'],
   Teachers: ['TeacherID','Name','Phone','Class','JoinDate','LeaveDate','Status','MonthlySalary','PhotoURL'],
-  Users: ['UserID','Name','Role','Username','Password','Phone','Status','Email','EmailVerified','VerifiedDate','ResetCode','ResetExpiry'],
+  Users: ['UserID','Name','Role','Username','Password','Phone','Status','Email','EmailVerified','VerifiedDate','ResetCode','ResetExpiry','TeacherID'],
   Attendance: ['Date','Session','StudentID','Status','MarkedBy'],
-  Sabaq: ['Date','StudentID','Sabaq','Amount','TeacherNote','MarkedBy'],
+  Sabaq: ['Date','StudentID','Sabaq','Amount','TeacherNote','MarkedBy','Recited'],
   Fees: ['ReceiptNo','Date','StudentID','Month','Amount','Status','Method'],
   StudentLedger: ['LedgerID','Date','StudentID','Type','Amount','Method','ReceiptNo','Note'],
   Accounts: ['Date','Fund','Type','Category','Item','Allocated','AllocatedAmount','SpentAmount','Amount','Description','ReceiptNo','EnteredBy','TeacherID'],
   Items: ['ItemID','ItemName','Fund','AllocatedAmount','SpentAmount','Status'],
+  Classes: ['ClassID','ClassName','Level','Description','Status'],
   Receipts: ['ReceiptNo','Date','Fund','StudentID','TeacherID','Amount','Purpose'],
   Settings: ['Key','Value']
 };
@@ -54,8 +55,8 @@ const TABS = {
 // Qari: only attendance, sabaq, and read-only views of his own class.
 // Any other action from a Qari/Editor is rejected here.
 const ROLE_DENY = {
-  Editor: ['saveSettings', 'saveUser'],
-  Qari: ['saveStudent', 'saveTeacher', 'recordFee', 'recordTransaction', 'saveSettings', 'saveUser', 'saveItem', 'recordLedger']
+  Editor: ['saveSettings', 'saveUser', 'saveClass'],
+  Qari: ['saveStudent', 'saveTeacher', 'recordFee', 'recordTransaction', 'saveSettings', 'saveUser', 'saveItem', 'recordLedger', 'saveClass']
 };
 
 function roleAllowed(role, action) {
@@ -87,6 +88,7 @@ function getTab(name) {
 function ensureAllTabs() {
   Object.keys(TABS).forEach(function (name) { getTab(name); ensureTabHeaders(name); });
   seedDemoOnce();
+  seedClassesOnce();
 }
 
 // v3 upgrade: if a tab already exists from v2 (e.g. Users without the new
@@ -152,8 +154,19 @@ function jsonOut(obj) {
 function doGet(e) {
   try {
     ensureAllTabs();
-    const action = (e && e.parameter && e.parameter.action) || 'getDashboard';
-    return jsonOut(handleAction(action, e.parameter || {}));
+    var params = (e && e.parameter) || {};
+    // v4: writes from a static site cannot rely on POST — browsers turn a
+    // POST into a GET when following the Apps Script redirect, losing the
+    // body. So the frontend sends writes as GET with a JSON `payload`
+    // parameter. Parse it here and merge it into the params.
+    if (params.payload) {
+      try {
+        var pl = JSON.parse(params.payload);
+        Object.keys(pl).forEach(function (k) { params[k] = pl[k]; });
+      } catch (pe) { return jsonOut({ ok: false, error: 'Bad payload JSON: ' + pe }); }
+    }
+    const action = params.action || 'getDashboard';
+    return jsonOut(handleAction(action, params));
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) });
   }
@@ -244,6 +257,8 @@ function handleAction(action, p) {
     case 'getAccounts': return getAccounts();
     case 'getItems': return { ok: true, items: readRows('Items') };
     case 'saveItem': return saveItem(p.item || p);
+    case 'getClasses': return { ok: true, classes: readRows('Classes') };
+    case 'saveClass': return saveClass(p.classObj || p);
     case 'getHistory': return getHistory(p);
     case 'getReceipts': return { ok: true, receipts: readRows('Receipts') };
     default: return { ok: false, error: 'Unknown action: ' + action };
@@ -374,7 +389,7 @@ function login(username, password) {
   const users = readRows('Users');
   const u = users.filter(function (x) { return String(x.Username) === String(username) && String(x.Password) === String(password) && x.Status === 'Active'; })[0];
   if (!u) return { ok: false, error: 'Wrong username or password, or account disabled.' };
-  return { ok: true, user: { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone, Email: u.Email || '', EmailVerified: u.EmailVerified || 'No' } };
+  return { ok: true, user: { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone, Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '' } };
 }
 
 function nextReceiptNo() {
@@ -517,9 +532,58 @@ function saveAttendance(p) {
 }
 
 function saveSabaq(s) {
-  if (!s.StudentID || !s.Sabaq) return { ok: false, error: 'Student and Sabaq are required.' };
-  appendRow('Sabaq', { Date: s.Date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), StudentID: s.StudentID, Sabaq: s.Sabaq, Amount: s.Amount || '', TeacherNote: s.TeacherNote || '', MarkedBy: s.MarkedBy || '' });
+  if (!s.StudentID) return { ok: false, error: 'Student is required.' };
+  if (!s.Sabaq && String(s.Recited || 'Yes') !== 'No') return { ok: false, error: 'Student and Sabaq are required.' };
+  // One row per student per day — update it if it already exists.
+  var date = s.Date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var sh = getTab('Sabaq');
+  var values = sh.getDataRange().getValues();
+  var headers = values[0];
+  var dateIdx = headers.indexOf('Date'), stuIdx = headers.indexOf('StudentID');
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][dateIdx]) === String(date) && String(values[i][stuIdx]) === String(s.StudentID)) {
+      var row = { Date: date, StudentID: s.StudentID, Sabaq: s.Sabaq || '', Amount: s.Amount || '', TeacherNote: s.TeacherNote || '', MarkedBy: s.MarkedBy || '', Recited: s.Recited || 'Yes' };
+      sh.getRange(i + 1, 1, 1, headers.length).setValues([headers.map(function (h) { return row[h] === undefined ? values[i][headers.indexOf(h)] : row[h]; })]);
+      return { ok: true, updated: true };
+    }
+  }
+  appendRow('Sabaq', { Date: date, StudentID: s.StudentID, Sabaq: s.Sabaq || '', Amount: s.Amount || '', TeacherNote: s.TeacherNote || '', MarkedBy: s.MarkedBy || '', Recited: s.Recited || 'Yes' });
   return { ok: true };
+}
+
+function saveClass(c) {
+  // c: { ClassID, ClassName, Level, Description, Status } — Admin only.
+  if (!c.ClassID) c.ClassID = 'CLS-' + new Date().getTime();
+  if (!c.ClassName) return { ok: false, error: 'Class name is required.' };
+  if (!c.Level) c.Level = '—';
+  if (!c.Status) c.Status = 'Active';
+  upsertRow('Classes', 'ClassID', c.ClassID, c);
+  return { ok: true, classObj: c };
+}
+
+// Default classes, seeded whenever the Classes tab is empty (independent of
+// the one-time demo flag, so existing installs get them too).
+function seedClassesOnce() {
+  var rows = readRows('Classes');
+  if (rows.length) return;
+  var defaults = [
+    ['Qaida', '—', 'Basic reading (Qaida)'],
+    ['Nazra', '—', 'Nazra Quran reading'],
+    ['Hifz', '—', 'Hifz (Quran memorisation)'],
+    ['Tajweed', '—', 'Tajweed rules'],
+    ['Alim-e-Deen', 'Level 1', 'Alim course — year 1'],
+    ['Alim-e-Deen', 'Level 2', 'Alim course — year 2'],
+    ['Alim-e-Deen', 'Level 3', 'Alim course — year 3'],
+    ['Alim-e-Deen', 'Level 4', 'Alim course — year 4'],
+    ['Alim-e-Deen', 'Level 5', 'Alim course — year 5'],
+    ['Alim-e-Deen', 'Level 6', 'Alim course — year 6'],
+    ['Alim-e-Deen', 'Level 7', 'Alim course — year 7'],
+    ['Alim-e-Deen', 'Level 8', 'Alim course — year 8'],
+    ['Fazil', '—', 'Fazil (advanced) class']
+  ];
+  defaults.forEach(function (d, i) {
+    appendRow('Classes', { ClassID: 'CLS-DEF-' + (i + 1), ClassName: d[0], Level: d[1], Description: d[2], Status: 'Active' });
+  });
 }
 
 function recordFee(f) {

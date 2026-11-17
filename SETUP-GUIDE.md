@@ -308,3 +308,13 @@ Do not sell it as "secure" — see the login security note above.
   The 6-digit codes are a demo/small-trust-circle mechanism, not
   production-grade auth. Do NOT use a real Google/bank password here.
 - Central admin panel to manage many madaris — later step, not now.
+
+## v4 update (2026-11-17) — READ THIS BEFORE DEPLOYING
+- **Redeploy Code.gs as a NEW VERSION** (Apps Script > Deploy > Manage deployments > pencil icon > Version: New version > Deploy). The Web App URL stays the same. Without this, the new backend features (Classes tab, InCharge/TeacherID/Recited columns, GET-payload writes, Sabaq upsert) will not run — the frontend keeps working on the old backend, but Classes and the new Qari linking will fall back to local data only.
+- **Writes now go through GET** (`?action=...&payload={...}`) — a plain fetch POST loses its body on Google's redirect, so queued saves silently never reached the Sheet. `order.js` apiPost now uses this GET-payload call; Code.gs `doGet` parses it.
+- **Language:** English by default, Urdu toggle button at the top. No mixed UI.
+- **Passwords:** only the main Admin creates / resets passwords (Settings > Users > Reset password). There is no self-service Forgot Password any more.
+- **Qari access:** link each Qari user to his Teacher record in Settings > Users. Students are assigned to a Qari via the In-charge field on the student form (or by Class when no In-charge is set). A Qari sees only his own students and lands on the My Class screen.
+- **Classes:** define classes in Settings > Classes (Qaida, Nazra, Hifz, Alim-e-Deen Level 1–8, Fazil). Each level is a separate class.
+- **Graphs:** Reports & Graphs section (Chart.js CDN) + a class attendance graph on My Class.
+- **Sabaq:** daily report shows who recited and who did not; each student profile has an attendance calendar.

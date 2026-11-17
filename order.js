@@ -101,15 +101,19 @@
 
   function clearOutbox() { writeJSON(OUTBOX_KEY, []); }
 
+  // v4: writes go through GET with a JSON `payload` parameter. A plain
+  // fetch POST to an Apps Script Web App is turned into a GET when the
+  // browser follows Google's redirect, which drops the body — the write
+  // would silently never happen (verified: curl POST lost the body with
+  // "411 Length Required", while --post302 worked). Code.gs doGet parses
+  // `payload` and routes the same handleAction as doPost.
   function apiPost(action, payload) {
     var url = getApiUrl();
     if (!url) return Promise.reject(new Error('No API URL configured (Settings). Working locally only.'));
     var body = Object.assign({ action: action }, payload || {});
-    return fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body)
-    }).then(function (res) { return res.json(); })
+    var sep = url.indexOf('?') === -1 ? '?' : '&';
+    return fetch(url + sep + 'action=' + encodeURIComponent(action) + '&payload=' + encodeURIComponent(JSON.stringify(body)))
+      .then(function (res) { return res.json(); })
       .then(function (data) {
         if (data && data.ok === false) throw new Error(data.error || 'Server error');
         return data;
@@ -181,6 +185,21 @@
     saveLocal('ledger', []);
     saveLocal('items', [
       { ItemID: 'ITM-DEMO-01', ItemName: 'DEMO کتابیں (Demo item — delete me)', Fund: 'Madrasa', AllocatedAmount: 0, SpentAmount: 0, Status: 'Active' }
+    ]);
+    saveLocal('classes', [
+      { ClassID: 'CLS-DEF-1', ClassName: 'Qaida', Level: '—', Description: 'Basic reading (Qaida)', Status: 'Active' },
+      { ClassID: 'CLS-DEF-2', ClassName: 'Nazra', Level: '—', Description: 'Nazra Quran reading', Status: 'Active' },
+      { ClassID: 'CLS-DEF-3', ClassName: 'Hifz', Level: '—', Description: 'Hifz (Quran memorisation)', Status: 'Active' },
+      { ClassID: 'CLS-DEF-4', ClassName: 'Tajweed', Level: '—', Description: 'Tajweed rules', Status: 'Active' },
+      { ClassID: 'CLS-DEF-5', ClassName: 'Alim-e-Deen', Level: 'Level 1', Description: 'Alim course — year 1', Status: 'Active' },
+      { ClassID: 'CLS-DEF-6', ClassName: 'Alim-e-Deen', Level: 'Level 2', Description: 'Alim course — year 2', Status: 'Active' },
+      { ClassID: 'CLS-DEF-7', ClassName: 'Alim-e-Deen', Level: 'Level 3', Description: 'Alim course — year 3', Status: 'Active' },
+      { ClassID: 'CLS-DEF-8', ClassName: 'Alim-e-Deen', Level: 'Level 4', Description: 'Alim course — year 4', Status: 'Active' },
+      { ClassID: 'CLS-DEF-9', ClassName: 'Alim-e-Deen', Level: 'Level 5', Description: 'Alim course — year 5', Status: 'Active' },
+      { ClassID: 'CLS-DEF-10', ClassName: 'Alim-e-Deen', Level: 'Level 6', Description: 'Alim course — year 6', Status: 'Active' },
+      { ClassID: 'CLS-DEF-11', ClassName: 'Alim-e-Deen', Level: 'Level 7', Description: 'Alim course — year 7', Status: 'Active' },
+      { ClassID: 'CLS-DEF-12', ClassName: 'Alim-e-Deen', Level: 'Level 8', Description: 'Alim course — year 8', Status: 'Active' },
+      { ClassID: 'CLS-DEF-13', ClassName: 'Fazil', Level: '—', Description: 'Fazil (advanced) class', Status: 'Active' }
     ]);
     saveLocal('sabaq', []);
     saveLocal('fees', [
