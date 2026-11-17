@@ -20,7 +20,7 @@
 
   // >>> PASTE YOUR APPS SCRIPT WEB APP URL HERE (or set it in Settings — Settings wins) <<<
   // Example: https://script.google.com/macros/s/AKfyc.../exec
-  var API_URL = '';
+  var API_URL = 'https://script.google.com/macros/s/AKfycbykWpFT5SZs92uaee0F8uJAWJ_mueCoafcfD_Rw09mkjhNQKATfd_1nPpgF8rM4ADq_Pg/exec'; // Live Web App URL — deployed by user 2026-11-17, tested getDashboard/getSettings OK
 
   // v2 actions (also in Code.gs handleAction): login, getUsers, saveUser,
   // getSettings, saveSettings, getLedger, recordLedger, getItems, saveItem,
