@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مدرسہ + مسجد — ایڈمن پینل (Madrasa + Masjid Admin)</title>
+<title>Admin Panel (CMS) — مدرسہ + مسجد</title>
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
 <div class="login-screen" id="loginScreen" style="display:flex">
   <div class="login-card">
     <img id="loginLogo" class="login-logo" style="display:none" alt="Madrasa logo">
-    <div class="login-emoji">🕌</div>
+    <div class="brand-mark" aria-hidden="true">M</div>
     <h1 id="loginBrandName">مدرسہ (Madrasa Name — change in Settings)</h1>
     <p class="hint">لاگ ان کریں — Login to continue</p>
     <form id="loginForm" onsubmit="doLoginUI(event)">
@@ -21,9 +21,9 @@
       <label>پاس ورڈ (Password)</label>
       <input id="loginPass" type="password" required autocomplete="current-password" placeholder="••••••••">
       <br><br>
-      <button class="btn" type="submit" style="width:100%">🔐 لاگ ان (Login)</button>
+      <button class="btn" type="submit" style="width:100%">لاگ ان (Login)</button>
     </form>
-    <p id="forgotLinkRow"><a href="#" onclick="showForgotUI();return false;">🔑 پاس ورڈ بھول گئے؟ (Forgot Password?)</a></p>
+    <p id="forgotLinkRow"><a class="forgot-link" href="#" onclick="showForgotUI();return false;">پاس ورڈ بھول گئے؟ (Forgot Password?)</a></p>
     <p class="login-success" id="forgotSuccess"></p>
     <p class="login-error" id="loginError"></p>
     <!-- v3: FORGOT PASSWORD — 3 screens inside the login card -->
@@ -65,7 +65,7 @@
       Editor: <code>editor / editor123</code><br>
       Qari: <code>qari / qari123</code>
     </div>
-    <p class="hint" style="margin-top:10px">⚠️ یہ ڈیمو لاگ ان ہے، محفوظ پروڈکشن لاگ ان نہیں — تفصیل SETUP-GUIDE میں دیکھیں۔</p>
+    <p class="hint" style="margin-top:10px">یہ ڈیمو لاگ ان ہے، محفوظ پروڈکشن لاگ ان نہیں — تفصیل SETUP-GUIDE میں دیکھیں۔</p>
   </div>
 </div>
 
@@ -79,22 +79,23 @@
     <div class="sub" id="brandAdminPhone"></div>
   </div>
   <span class="whoami" id="whoami"></span>
-  <button class="sync-pill" id="syncPill" onclick="syncNowUI()" title="Sync now">⏳ Saved locally</button>
-  <button class="btn secondary" onclick="logoutUI()">🚪 لاگ آؤٹ (Logout)</button>
+  <button class="sync-pill" id="syncPill" onclick="syncNowUI()" title="Sync now">Saved locally</button>
+  <button class="btn secondary" onclick="logoutUI()">لاگ آؤٹ (Logout)</button>
 </header>
 
 <div class="layout">
   <nav class="sidebar" id="sidebar">
-    <button data-section="dashboard" class="active" onclick="showSection('dashboard')">📊 ڈیش بورڈ (Dashboard)</button>
-    <button data-section="students" onclick="showSection('students')">👨‍🎓 طلبہ (Students)</button>
-    <button data-section="teachers" onclick="showSection('teachers')">👳 اساتذہ / قاری صاحب (Teachers)</button>
-    <button data-section="attendance" onclick="showSection('attendance')">✅ حاضری (Attendance)</button>
-    <button data-section="fees" onclick="showSection('fees')">💰 فیس (Fees)</button>
-    <button data-section="accounts" onclick="showSection('accounts')">📒 حسابات (Accounts)</button>
-    <button data-section="receipts" onclick="showSection('receipts')">🧾 رسیدیں (Receipts)</button>
-    <button data-section="history" onclick="showSection('history')">🕰️ تاریخ / ریکارڈ (History)</button>
-    <button data-section="my-account" onclick="showSection('my-account')">👤 میرا اکاؤنٹ (My Account)</button>
-    <button data-section="settings" id="sidebarSettingsBtn" onclick="showSection('settings')">⚙️ سیٹنگز (Settings)</button>
+    <div class="sidebar-head"><span class="brand-mark sm" aria-hidden="true">M</span><span class="sidebar-title">Admin Panel</span></div>
+    <button data-section="dashboard" class="active" onclick="showSection('dashboard')">ڈیش بورڈ (Dashboard)</button>
+    <button data-section="students" onclick="showSection('students')">طلبہ (Students)</button>
+    <button data-section="teachers" onclick="showSection('teachers')">اساتذہ / قاری صاحب (Teachers)</button>
+    <button data-section="attendance" onclick="showSection('attendance')">حاضری (Attendance)</button>
+    <button data-section="fees" onclick="showSection('fees')">فیس (Fees)</button>
+    <button data-section="accounts" onclick="showSection('accounts')">حسابات (Accounts)</button>
+    <button data-section="receipts" onclick="showSection('receipts')">رسیدیں (Receipts)</button>
+    <button data-section="history" onclick="showSection('history')">تاریخ / ریکارڈ (History)</button>
+    <button data-section="my-account" onclick="showSection('my-account')">میرا اکاؤنٹ (My Account)</button>
+    <button data-section="settings" id="sidebarSettingsBtn" onclick="showSection('settings')">سیٹنگز (Settings)</button>
   </nav>
 
   <main class="main">
@@ -151,12 +152,12 @@
           </div>
           <br>
           <input type="hidden" id="stId">
-          <button class="btn" type="submit">💾 محفوظ کریں (Save)</button>
+          <button class="btn" type="submit">محفوظ کریں (Save)</button>
           <button class="btn secondary" type="button" onclick="resetStudentForm()">نیا فارم (Clear)</button>
         </form>
       </div>
       <div class="toolbar">
-        <input id="stSearch" placeholder="🔍 تلاش — نام / والد / جماعت / مقام" oninput="renderStudents()">
+        <input id="stSearch" placeholder="تلاش — نام / والد / جماعت / مقام" oninput="renderStudents()">
         <select id="stFilterStatus" onchange="renderStudents()">
           <option value="">تمام اسٹیٹس (All)</option><option value="Current">Current</option><option value="HifzCompleted">Hifz Completed</option><option value="Left">Left</option>
         </select>
@@ -186,7 +187,7 @@
             <div><label>تاریخ (Date)</label><input id="ledgerDate" type="date"></div>
             <div class="full"><label>نوٹ (Note)</label><input id="ledgerNote" placeholder="کس مد میں؟"></div>
           </div><br>
-          <button class="btn" type="submit">🧾 کھاتے میں درج کریں + رسید (Save to ledger &amp; receipt)</button>
+          <button class="btn" type="submit">کھاتے میں درج کریں + رسید (Save to ledger &amp; receipt)</button>
         </form>
       </div>
     </section>
@@ -207,7 +208,7 @@
             <div><label>اسٹیٹس (Status)</label><select id="tStatus"><option value="Active">Active</option><option value="Left">Left</option></select></div>
           </div><br>
           <input type="hidden" id="tId">
-          <button class="btn" type="submit">💾 محفوظ کریں (Save)</button>
+          <button class="btn" type="submit">محفوظ کریں (Save)</button>
           <button class="btn secondary" type="button" onclick="resetTeacherForm()">نیا فارم (Clear)</button>
         </form>
       </div>
@@ -239,12 +240,12 @@
             </select></div>
           <div><label>حاضری لینے والا (Marked by)</label><input id="attBy" placeholder="قاری صاحب کا نام"></div>
         </div><br>
-        <button class="btn secondary" type="button" onclick="renderAttendanceList()">📋 فہرست دکھائیں (Show list)</button>
+        <button class="btn secondary" type="button" onclick="renderAttendanceList()">فہرست دکھائیں (Show list)</button>
       </div>
       <div class="panel">
         <h3 id="attCount">—</h3>
         <div class="att-list" id="attList"></div><br>
-        <button class="btn" onclick="saveAttendanceUI()">💾 حاضری محفوظ کریں (Save attendance)</button>
+        <button class="btn" onclick="saveAttendanceUI()">حاضری محفوظ کریں (Save attendance)</button>
         <span class="size-note" id="attSavedNote"></span>
       </div>
       <div class="panel">
@@ -257,7 +258,7 @@
             <div><label>مقدار (Amount / pages)</label><input id="sabaqAmount" placeholder="مثلاً: 2 صفحے"></div>
             <div class="full"><label>استاد کی رائے (Teacher note)</label><input id="sabaqNote"></div>
           </div><br>
-          <button class="btn" type="submit">💾 سبق محفوظ کریں (Save sabaq)</button>
+          <button class="btn" type="submit">سبق محفوظ کریں (Save sabaq)</button>
         </form>
       </div>
     </section>
@@ -276,13 +277,13 @@
             <div><label>طریقہ (Method)</label><select id="feeMethod"><option>Cash</option><option>Bank Transfer</option><option>JazzCash</option><option>EasyPaisa</option></select></div>
             <div><label>تاریخ (Date)</label><input id="feeDate" type="date"></div>
           </div><br>
-          <button class="btn" type="submit">🧾 فیس + رسید محفوظ کریں (Save fee &amp; receipt)</button>
+          <button class="btn" type="submit">فیس + رسید محفوظ کریں (Save fee &amp; receipt)</button>
         </form>
       </div>
       <div class="panel" id="receiptPanel" style="display:none">
         <h3>رسید (Receipt) — پرنٹ کریں</h3>
         <div class="receipt" id="receiptView"></div><br>
-        <button class="btn secondary no-print" onclick="window.print()">🖨️ پرنٹ (Print)</button>
+        <button class="btn secondary no-print" onclick="window.print()">پرنٹ (Print)</button>
       </div>
       <div class="panel"><h3>فیس کی فہرست (Fees list)</h3><div class="table-wrap"><table>
         <thead><tr><th>رسید نمبر</th><th>تاریخ</th><th>طالب علم</th><th>مہینہ</th><th>رقم</th><th>اسٹیٹس</th></tr></thead>
@@ -309,7 +310,7 @@
             <div><label>اسٹیٹس</label><select id="itemStatus"><option value="Active">Active</option><option value="Closed">Closed</option></select></div>
           </div><br>
           <input type="hidden" id="itemId">
-          <button class="btn" type="submit">💾 آئٹم محفوظ کریں (Save item)</button>
+          <button class="btn" type="submit">آئٹم محفوظ کریں (Save item)</button>
         </form>
         <br>
         <div class="table-wrap"><table>
@@ -332,7 +333,7 @@
             <div><label>تاریخ (Date)</label><input id="txDate" type="date"></div>
             <div class="full"><label>تفصیل (Description)</label><input id="txDesc" placeholder="کس چیز کے لیے؟"></div>
           </div><br>
-          <button class="btn" type="submit">💾 لین دین محفوظ کریں (Save transaction)</button>
+          <button class="btn" type="submit">لین دین محفوظ کریں (Save transaction)</button>
         </form>
       </div>
       <div class="panel"><div class="toolbar">
@@ -380,18 +381,18 @@
           <div class="grid">
             <div class="full"><label>ای میل (Email) *</label><input id="myEmailInput" type="email" dir="ltr" required placeholder="name@example.com"></div>
           </div><br>
-          <button class="btn" type="submit">💾 ای میل محفوظ کریں (Save email)</button>
+          <button class="btn" type="submit">ای میل محفوظ کریں (Save email)</button>
         </form>
       </div>
       <div class="panel" id="emailVerifyBox">
         <h3>ای میل کی تصدیق کریں (Verify Email)</h3>
         <p class="hint">6 ہندسوں والا کوڈ آپ کی ای میل پر بھیجا جائے گا۔ ڈیمو موڈ میں کوڈ اسکرین پر دکھایا جائے گا۔</p>
-        <button class="btn secondary" type="button" onclick="requestEmailVerificationUI()">📩 تصدیقی کوڈ بھیجیں (Send verification code)</button><br><br>
+        <button class="btn secondary" type="button" onclick="requestEmailVerificationUI()">تصدیقی کوڈ بھیجیں (Send verification code)</button><br><br>
         <form onsubmit="verifyEmailUI(event)">
           <div class="grid">
             <div><label>6 ہندسوں والا کوڈ (6-digit code)</label><input id="emailVerifyCode" dir="ltr" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="123456"></div>
           </div><br>
-          <button class="btn" type="submit">✅ تصدیق کریں (Verify)</button>
+          <button class="btn" type="submit">تصدیق کریں (Verify)</button>
         </form>
         <p class="size-note" id="emailVerifyMsg"></p>
       </div>
@@ -411,7 +412,7 @@
           <div><label>ایڈمن واٹس ایپ (Admin WhatsApp)</label><input id="setAdminWhatsApp" dir="ltr" placeholder="923xx-xxxxxxx"></div>
           <div class="full"><label>پتہ (Address)</label><input id="setAddress"></div>
           <div class="full"><label>لوگو URL (Logo URL — ImgBB / hosted image link)</label><input id="setLogoURL" dir="ltr" placeholder="https://…/logo.png"></div>
-          <div><label>رنگ (Theme colour)</label><input id="setThemeColor" type="color" value="#0e7a5f"></div>
+          <div><label>رنگ (Theme colour)</label><input id="setThemeColor" type="color" value="#4f46e5"></div>
         </div>
         <p class="size-note" id="adminContactNote"></p>
       </div>
@@ -423,8 +424,8 @@
           <div class="full"><label>ImgBB API Key (تصاویر ہوسٹ کرنے کے لیے — https://api.imgbb.com/ سے مفت کلید)</label>
             <input id="setImgbb" dir="ltr" placeholder="paste ImgBB API key here"></div>
         </div><br>
-        <button class="btn" id="saveSettingsBtn" onclick="saveSettingsUI()">💾 سیٹنگز محفوظ کریں (Save settings)</button>
-        <button class="btn secondary" onclick="syncNowUI()">🔄 ابھی Sync کریں (Sync now)</button>
+        <button class="btn" id="saveSettingsBtn" onclick="saveSettingsUI()">سیٹنگز محفوظ کریں (Save settings)</button>
+        <button class="btn secondary" onclick="syncNowUI()">ابھی Sync کریں (Sync now)</button>
         <p class="size-note" id="settingsNote"></p>
       </div>
       <div class="panel" id="usersPanel">
@@ -439,7 +440,7 @@
             <div><label>فون (Phone)</label><input id="newUserPhone" dir="ltr"></div>
             <div><label>ای میل (Email)</label><input id="newUserEmail" type="email" dir="ltr" placeholder="name@example.com"></div>
           </div><br>
-          <button class="btn" type="submit">👤 یوزر بنائیں (Create user)</button>
+          <button class="btn" type="submit">یوزر بنائیں (Create user)</button>
         </form>
         <br>
         <br>
@@ -449,7 +450,7 @@
             <div><label>یوزر (User)</label><select id="adminEmailUser"></select></div>
             <div><label>ای میل (Email) *</label><input id="adminEmailInput" type="email" dir="ltr" required placeholder="name@example.com"></div>
           </div><br>
-          <button class="btn secondary" type="submit">✉️ ای میل محفوظ کریں (Save email)</button>
+          <button class="btn secondary" type="submit">ای میل محفوظ کریں (Save email)</button>
           <span class="size-note" id="adminEmailNote"></span>
         </form>
         <br>
@@ -462,7 +463,7 @@
         <h3>مقامی ڈیٹا (Local data — order.js)</h3>
         <p class="hint">تمام ڈیٹا پہلے اس ڈیوائس پر محفوظ ہوتا ہے، پھر Sheet سے sync ہوتا ہے۔ یہی فائل بعد میں Electron / موبائل ایپ میں بھی کام کرے گی۔</p>
         <div class="log" id="localInfo">—</div><br>
-        <button class="btn danger" onclick="if(confirm('کیا آپ واقعی مقامی ڈیٹا صاف کرنا چاہتے ہیں؟')){localStorage.clear();location.reload();}">🗑️ مقامی ڈیٹا صاف کریں (Clear local data)</button>
+        <button class="btn danger" onclick="if(confirm('کیا آپ واقعی مقامی ڈیٹا صاف کرنا چاہتے ہیں؟')){localStorage.clear();location.reload();}">مقامی ڈیٹا صاف کریں (Clear local data)</button>
       </div>
     </section>
   </main>

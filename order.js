@@ -177,7 +177,7 @@
       { UserID: 'USR-DEMO-EDITOR', Name: 'DEMO ایڈیٹر (Demo Editor)', Role: 'Editor', Username: 'editor', Password: 'editor123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' },
       { UserID: 'USR-DEMO-QARI', Name: 'DEMO قاری صاحب (Demo Qari)', Role: 'Qari', Username: 'qari', Password: 'qari123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' }
     ]);
-    saveLocal('settings', { MadrasaName: 'مدرسہ (Madrasa Name — change in Settings)', MasjidName: 'مسجد (Masjid Name — change in Settings)', AdminName: 'ایڈمن (Admin Name)', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#0e7a5f' });
+    saveLocal('settings', { MadrasaName: 'مدرسہ (Madrasa Name — change in Settings)', MasjidName: 'مسجد (Masjid Name — change in Settings)', AdminName: 'ایڈمن (Admin Name)', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#4f46e5' });
     saveLocal('ledger', []);
     saveLocal('items', [
       { ItemID: 'ITM-DEMO-01', ItemName: 'DEMO کتابیں (Demo item — delete me)', Fund: 'Madrasa', AllocatedAmount: 0, SpentAmount: 0, Status: 'Active' }

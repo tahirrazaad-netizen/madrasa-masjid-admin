@@ -216,7 +216,7 @@
     var st = $('myEmailStatus');
     if (st) {
       st.innerHTML = u.Email
-        ? 'Email: <span dir="ltr">' + esc(u.Email) + '</span> — تصدیق (Verified): <b>' + esc(u.EmailVerified || 'No') + '</b>' + (u.VerifiedDate ? ' (' + esc(u.VerifiedDate) + ')' : '') + (String(u.EmailVerified) === 'Yes' ? ' ✅' : ' — نیچے کوڈ سے تصدیق کریں۔')
+        ? 'Email: <span dir="ltr">' + esc(u.Email) + '</span> — تصدیق (Verified): <b>' + esc(u.EmailVerified || 'No') + '</b>' + (u.VerifiedDate ? ' (' + esc(u.VerifiedDate) + ')' : '') + (String(u.EmailVerified) === 'Yes' ? '' : ' — نیچے کوڈ سے تصدیق کریں۔')
         : 'ابھی کوئی ای میل نہیں ہے۔ نیچے ای میل شامل کریں — یہ پاس ورڈ ری سیٹ اور فیس نوٹیفکیشن کے لیے استعمال ہوگی۔';
     }
     var box = $('emailVerifyBox'); if (box) box.style.display = u.Email ? 'block' : 'none';
@@ -344,13 +344,13 @@
     var pill = $('syncPill');
     if (!pill) return;
     if (!st.apiConfigured) {
-      pill.textContent = st.pending ? '💾 Saved locally · Pending (' + st.pending + ') — no API URL yet' : '💾 Saved locally (no API URL yet)';
+      pill.textContent = st.pending ? 'Saved locally · Pending (' + st.pending + ') — no API URL yet' : 'Saved locally (no API URL yet)';
       pill.classList.add('pending');
     } else if (st.pending) {
-      pill.textContent = '⏳ Pending (' + st.pending + ') — tap to sync';
+      pill.textContent = 'Pending (' + st.pending + ') — tap to sync';
       pill.classList.add('pending');
     } else {
-      pill.textContent = '✅ Synced' + (st.lastSync ? ' · ' + new Date(st.lastSync).toLocaleString() : '');
+      pill.textContent = 'Synced' + (st.lastSync ? ' · ' + new Date(st.lastSync).toLocaleString() : '');
       pill.classList.remove('pending');
     }
     var info = $('localInfo');
@@ -359,7 +359,7 @@
 
   window.syncNowUI = function () {
     var pill = $('syncPill');
-    if (pill) pill.textContent = '🔄 Syncing…';
+    if (pill) pill.textContent = 'Syncing…';
     MMLocal.syncNow().then(function (r) {
       if (r.ok) { refreshFromServer(); }
       refreshSyncPill();
@@ -369,7 +369,7 @@
 
   /* ---------- settings / branding (white-label: nothing hard-coded) ---------- */
   function defaultSettings() {
-    return { MadrasaName: 'مدرسہ (Madrasa Name — change in Settings)', MasjidName: 'مسجد (Masjid Name — change in Settings)', AdminName: 'ایڈمن (Admin Name)', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#0e7a5f' };
+    return { MadrasaName: 'مدرسہ (Madrasa Name — change in Settings)', MasjidName: 'مسجد (Masjid Name — change in Settings)', AdminName: 'ایڈمن (Admin Name)', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#4f46e5' };
   }
   function loadSettingsLocal() {
     var s = MMLocal.getLocal('settings');
@@ -398,7 +398,7 @@
     $('setAdminWhatsApp').value = settings.AdminWhatsApp || '';
     $('setAddress').value = settings.Address || '';
     $('setLogoURL').value = settings.LogoURL || '';
-    $('setThemeColor').value = settings.ThemeColor || '#0e7a5f';
+    $('setThemeColor').value = settings.ThemeColor || '#4f46e5';
   }
 
   /* ---------- load: local first, then server ---------- */
@@ -525,9 +525,9 @@
         '<td>' + esc(s.FatherName) + '</td><td>' + esc(s.Class) + '</td><td>' + sessions + '</td><td>' + rs(s.MonthlyFee) + '</td>' +
         '<td>' + adm + '</td>' +
         '<td><span class="badge ' + (s.Status === 'Current' ? 'current' : s.Status === 'HifzCompleted' ? 'hifz' : 'left') + '">' + esc(s.Status) + '</span></td>' +
-        '<td><button class="btn small secondary" onclick="showStudentProfile(\'' + esc(s.StudentID) + '\')">👤 پروفائل</button> ' +
-        '<button class="btn small secondary" onclick="editStudent(\'' + esc(s.StudentID) + '\')">✏️ ترمیم</button> ' +
-        '<button class="btn small secondary" onclick="changeStudentStatus(\'' + esc(s.StudentID) + '\')">🔁 اسٹیٹس</button></td></tr>';
+        '<td><button class="btn small secondary" onclick="showStudentProfile(\'' + esc(s.StudentID) + '\')">پروفائل</button> ' +
+        '<button class="btn small secondary" onclick="editStudent(\'' + esc(s.StudentID) + '\')">ترمیم</button> ' +
+        '<button class="btn small secondary" onclick="changeStudentStatus(\'' + esc(s.StudentID) + '\')">اسٹیٹس</button></td></tr>';
     }).join('') : '<tr><td colspan="8" class="empty">کوئی طالب علم نہیں ملا۔ (No students found — add one above.)</td></tr>';
   };
 
@@ -616,7 +616,7 @@
     rows.forEach(function (r) { var a = Number(r.Amount) || 0; if (r.Type === 'PaymentFromHome') balance += a; else if (r.Type === 'Fee') balance -= a; else if (r.Type === 'Refund') balance -= a; else balance += a; });
     var sabaqRows = sabaq.filter(function (r) { return String(r.StudentID) === String(s.StudentID); }).slice(-5).reverse();
     el.innerHTML =
-      '<div class="profile-head">' + (s.PhotoURL ? '<img src="' + esc(s.PhotoURL) + '" class="profile-photo" alt="">' : '<div class="profile-photo placeholder">👤</div>') +
+      '<div class="profile-head">' + (s.PhotoURL ? '<img src="' + esc(s.PhotoURL) + '" class="profile-photo" alt="">' : '<div class="profile-photo placeholder">' + esc((s.Name || '?').charAt(0)) + '</div>') +
       '<div><h3>' + esc(s.Name) + '</h3><p>والد: ' + esc(s.FatherName) + ' · جماعت: ' + esc(s.Class) + ' · اسٹیٹس: ' + esc(s.Status) + '</p>' +
       '<p>عمر: ' + esc(s.Age) + ' · داخلہ: ' + esc(s.AdmissionDate) + ' · ماہانہ فیس: ' + rs(s.MonthlyFee) + '</p>' +
       '<p>پتہ / مقام (Address/Location): ' + esc(s.Address || '—') + '</p>' +
@@ -665,11 +665,11 @@
       return MMImage.uploadImage(file).then(function (u) {
         pendingPhoto = u;
         $('stPhotoURL').value = u.url;
-        $('photoSizeNote').textContent += ' ✅ Uploaded — URL saved (base64 NOT stored in Sheet).';
+        $('photoSizeNote').textContent += ' Uploaded — URL saved (base64 NOT stored in Sheet).';
       }).catch(function (err) {
-        $('photoSizeNote').textContent += ' ⚠️ ' + err.message + ' — photo preview only; URL not saved yet.';
+        $('photoSizeNote').textContent += err.message + ' — photo preview only; URL not saved yet.';
       });
-    }).catch(function (err) { $('photoSizeNote').textContent = '⚠️ ' + err.message; });
+    }).catch(function (err) { $('photoSizeNote').textContent = err.message; });
   };
 
   /* ---------- teachers + Qari profile ---------- */
@@ -679,9 +679,9 @@
     $('teachersTable').innerHTML = list.length ? list.map(function (t) {
       return '<tr><td>' + esc(t.Name) + '</td><td dir="ltr">' + esc(t.Phone) + '</td><td>' + esc(t.Class) + '</td><td>' + esc(t.JoinDate) + '</td><td>' + rs(t.MonthlySalary) + '</td>' +
         '<td><span class="badge ' + (t.Status === 'Active' ? 'active' : 'left') + '">' + esc(t.Status) + '</span></td>' +
-        '<td><button class="btn small secondary" onclick="showTeacherProfile(\'' + esc(t.TeacherID) + '\')">👤 پروفائل</button> ' +
-        '<button class="btn small secondary" onclick="editTeacher(\'' + esc(t.TeacherID) + '\')">✏️ ترمیم</button> ' +
-        '<button class="btn small secondary" onclick="changeTeacherStatus(\'' + esc(t.TeacherID) + '\')">🔁 اسٹیٹس</button></td></tr>';
+        '<td><button class="btn small secondary" onclick="showTeacherProfile(\'' + esc(t.TeacherID) + '\')">پروفائل</button> ' +
+        '<button class="btn small secondary" onclick="editTeacher(\'' + esc(t.TeacherID) + '\')">ترمیم</button> ' +
+        '<button class="btn small secondary" onclick="changeTeacherStatus(\'' + esc(t.TeacherID) + '\')">اسٹیٹس</button></td></tr>';
     }).join('') : '<tr><td colspan="7" class="empty">کوئی استاد نہیں۔ (No teachers yet.)</td></tr>';
   };
   window.editTeacher = function (id) {
@@ -730,7 +730,7 @@
     var advances = advanceRows.reduce(function (s, r) { return s + (Number(r.Amount) || 0); }, 0);
     var marked = attendance.filter(function (a) { return a.MarkedBy === t.Name; });
     el.innerHTML =
-      '<div class="profile-head"><div class="profile-photo placeholder">👳</div><div><h3>' + esc(t.Name) + ' — قاری صاحب</h3>' +
+      '<div class="profile-head"><div class="profile-photo placeholder">' + esc((t.Name || '?').charAt(0)) + '</div><div><h3>' + esc(t.Name) + ' — قاری صاحب</h3>' +
       '<p>فون: <span dir="ltr">' + esc(t.Phone || '—') + '</span> · جماعت: ' + esc(t.Class) + ' · تقرری: ' + esc(t.JoinDate) + ' · اسٹیٹس: ' + esc(t.Status) + (t.LeaveDate ? ' (چھوڑنے کی تاریخ: ' + esc(t.LeaveDate) + ')' : '') + '</p>' +
       '<p>ماہانہ تنخواہ: ' + rs(t.MonthlySalary) + ' · تنخواہ ادا شدہ (Salary paid): ' + rs(salaryPaid) + ' · ایڈوانس لیا (Advances taken): ' + rs(advances) + '</p>' +
       '<p>اس کی جماعت کے طلبہ: ' + myStudents.filter(function (s) { return s.Status === 'Current'; }).length + ' موجودہ / ' + myStudents.length + ' کل</p>' +
@@ -756,8 +756,8 @@
     $('attCount').textContent = 'سیشن: ' + session + ' — ' + attSessionList.length + ' طلبہ (all Present by default — صرف Absent / Leave پر ٹیپ کریں)';
     $('attList').innerHTML = attSessionList.length ? attSessionList.map(function (s) {
       return '<div class="att-row" id="att-' + esc(s.StudentID) + '"><span class="name">' + esc(s.Name) + '</span><span class="cls">' + esc(s.Class) + '</span>' +
-        '<button class="toggle" onclick="toggleAtt(\'' + esc(s.StudentID) + '\',\'Absent\',this)">❌ Absent</button>' +
-        '<button class="toggle" onclick="toggleAtt(\'' + esc(s.StudentID) + '\',\'Leave\',this)">🟡 Leave</button></div>';
+        '<button class="toggle" onclick="toggleAtt(\'' + esc(s.StudentID) + '\',\'Absent\',this)">Absent</button>' +
+        '<button class="toggle" onclick="toggleAtt(\'' + esc(s.StudentID) + '\',\'Leave\',this)">Leave</button></div>';
     }).join('') : '<div class="empty">اس سیشن میں کوئی طالب علم نہیں۔ (No students in this session.)</div>';
   };
   window.toggleAtt = function (id, kind, btn) {
@@ -785,7 +785,7 @@
     attendance.push({ Date: date, Session: session, StudentID: 'SUMMARY', Status: 'Present: ' + present + ' | Absent: ' + absent.length + ' | Leave: ' + leave.length, MarkedBy: $('attBy').value || (currentUser ? currentUser.Name : '') });
     MMLocal.saveLocal('attendance', attendance);
     MMLocal.queueChange('saveAttendance', { date: date, session: session, markedBy: $('attBy').value || (currentUser ? currentUser.Name : ''), absent: absent, leave: leave, totalInSession: attSessionList.length, role: role() });
-    $('attSavedNote').textContent = '✅ محفوظ — Present: ' + present + ' · Absent: ' + absent.length + ' · Leave: ' + leave.length;
+    $('attSavedNote').textContent = 'محفوظ — Present: ' + present + ' · Absent: ' + absent.length + ' · Leave: ' + leave.length;
     renderDashboard(); refreshSyncPill();
   };
   window.saveSabaqUI = function (e) {
@@ -841,13 +841,13 @@
   };
   function showReceipt(rec, name) {
     $('receiptPanel').style.display = 'block';
-    $('receiptView').innerHTML = '<h3>🕌 ' + esc(settings.MadrasaName || 'مدرسہ') + ' — رسید (Receipt)</h3><table>' +
+    $('receiptView').innerHTML = '<h3>' + esc(settings.MadrasaName || 'مدرسہ') + ' — رسید (Receipt)</h3><table>' +
       '<tr><td>رسید نمبر (Receipt No.)</td><td><b>' + esc(rec.ReceiptNo) + '</b></td></tr>' +
       '<tr><td>تاریخ (Date)</td><td>' + esc(rec.Date) + '</td></tr>' +
       '<tr><td>طالب علم (Student)</td><td>' + esc(name) + '</td></tr>' +
       '<tr><td>مقصد (Purpose)</td><td>' + esc(rec.Purpose) + '</td></tr>' +
       '<tr><td>رقم (Amount)</td><td><b>' + rs(rec.Amount) + '</b></td></tr></table>' +
-      '<p style="text-align:center;color:#6b7d76;font-size:13px">جزاک اللہ خیراً — Thank you</p>';
+      '<p style="text-align:center;color:#64748b;font-size:13px">Thank you</p>';
   }
   window.renderFees = function () {
     $('feesTable').innerHTML = fees.length ? fees.slice().reverse().map(function (f) {
