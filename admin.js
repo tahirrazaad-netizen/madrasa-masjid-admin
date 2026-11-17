@@ -207,7 +207,7 @@
   };
   function loginSuccess(u) {
     currentUser = { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone || '', Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '', Permissions: u.Permissions || '' };
-    try { sessionStorage.setItem('mm_v2_session', JSON.stringify(currentUser)); } catch (e) {}
+    try { sessionStorage.setItem('mm_v6_session', JSON.stringify(currentUser)); } catch (e) {}
     $('loginError').textContent = '';
     showApp();
     renderDashboard(); renderStudents(); renderTeachers(); renderFees(); renderAccounts(); renderReceipts(); renderHistory(); renderUsers(); renderItems(); renderClasses(); renderMessages(); fillClassSelects();
@@ -216,13 +216,13 @@
   }
   window.logoutUI = function () {
     currentUser = null;
-    try { sessionStorage.removeItem('mm_v2_session'); } catch (e) {}
+    try { sessionStorage.removeItem('mm_v6_session'); } catch (e) {}
     var f = $('loginForm'); if (f) f.reset();
     showLogin();
   };
   function restoreSession() {
     try {
-      var raw = sessionStorage.getItem('mm_v2_session');
+      var raw = sessionStorage.getItem('mm_v6_session');
       if (raw) currentUser = JSON.parse(raw);
     } catch (e) {}
   }
@@ -494,15 +494,15 @@
   /* ---------- Qari notification LOG (log only — NOT a sent push) ---------- */
   function logQariNotification(text) {
     var log = [];
-    try { log = JSON.parse(localStorage.getItem('mm_v1_notiflog') || '[]'); } catch (e) {}
+    try { log = JSON.parse(localStorage.getItem('mm_v6_notiflog') || '[]'); } catch (e) {}
     log.unshift(new Date().toLocaleString() + ' — ' + text + '  [LOG ONLY — push notification not built yet]');
-    try { localStorage.setItem('mm_v1_notiflog', JSON.stringify(log.slice(0, 50))); } catch (e) {}
+    try { localStorage.setItem('mm_v6_notiflog', JSON.stringify(log.slice(0, 50))); } catch (e) {}
     renderNotifLog();
   }
   function renderNotifLog() {
     var el = $('notifLog'); if (!el) return;
     var log = [];
-    try { log = JSON.parse(localStorage.getItem('mm_v1_notiflog') || '[]'); } catch (e) {}
+    try { log = JSON.parse(localStorage.getItem('mm_v6_notiflog') || '[]'); } catch (e) {}
     el.textContent = log.length ? log.join('\n') : t('No notifications yet.');
   }
 

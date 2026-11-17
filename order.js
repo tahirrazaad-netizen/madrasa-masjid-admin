@@ -34,7 +34,7 @@
 (function (global) {
   'use strict';
 
-  var LS_PREFIX = 'mm_v1_';
+  var LS_PREFIX = 'mm_v6_'; // v6: fresh local store (old v1 store may hold Urdu defaults)
   var OUTBOX_KEY = LS_PREFIX + 'outbox';
   var META_KEY = LS_PREFIX + 'meta';
 
