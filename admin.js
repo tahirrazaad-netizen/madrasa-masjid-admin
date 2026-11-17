@@ -22,7 +22,7 @@
 
   // >>> PASTE YOUR APPS SCRIPT WEB APP URL HERE (or set it in Settings — Settings wins) <<<
   // Example: https://script.google.com/macros/s/AKfyc.../exec
-  var API_URL = 'https://script.google.com/macros/s/AKfycbykWpFT5SZs92uaee0F8uJAWJ_mueCoafcfD_Rw09mkjhNQKATfd_1nPpgF8rM4ADq_Pg/exec'; // Live Web App URL — deployed by user 2026-11-17, tested getDashboard/getSettings OK
+  var API_URL = 'https://script.google.com/macros/s/AKfycbwjLOVyx4P-IRAmpWJBny_Mm1tEtR_bb6SkJJqY-U6CifHu0tFwZgkEnR1AWlNuW3-cVg/exec'; // Live Web App URL — NEW deployment by user 2026-11-17, v5 verified getDashboard/getClasses/getVehicles + payload write OK
 
   // v2 actions (also in Code.gs handleAction): login, getUsers, saveUser,
   // getSettings, saveSettings, getLedger, recordLedger, getItems, saveItem,

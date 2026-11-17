@@ -105,6 +105,19 @@ function ensureTabHeaders(name) {
   if (missing.length) sh.getRange(1, headers.length + 1, 1, missing.length).setValues([missing]);
 }
 
+// Google Sheets auto-converts '2026-11-17' into a real Date cell. When Apps
+// Script reads it back, getValues() returns a JS Date, which JSON turns
+// into '2026-11-17T00:00:00.000Z' — and every 'YYYY-MM-DD' comparison in
+// the code then fails (the attendance FINAL lock, Sabaq upsert, dashboard
+// dates). Normalise every Date cell to a plain 'YYYY-MM-DD' string here,
+// so ALL reads (and the lock checks below) see the same format the panel
+// writes.
+function fmtDate(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v)) {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return String(v);
+}
 function readRows(name) {
   const sh = getTab(name);
   const values = sh.getDataRange().getValues();
@@ -112,7 +125,7 @@ function readRows(name) {
   const headers = values[0];
   return values.slice(1).map(function (r) {
     const o = {};
-    headers.forEach(function (h, i) { o[h] = r[i] === undefined ? '' : r[i]; });
+    headers.forEach(function (h, i) { o[h] = r[i] === undefined ? '' : fmtDate(r[i]); });
     return o;
   });
 }
@@ -535,7 +548,7 @@ function saveAttendance(p) {
   const headers = values[0];
   const dIdx = headers.indexOf('Date'), sIdx = headers.indexOf('Session'), stuIdx = headers.indexOf('StudentID');
   for (var i = 1; i < values.length; i++) {
-    if (String(values[i][dIdx]) === String(p.date) && String(values[i][sIdx]) === String(p.session) && String(values[i][stuIdx]) === 'SUMMARY') {
+    if (fmtDate(values[i][dIdx]) === String(p.date) && String(values[i][sIdx]) === String(p.session) && String(values[i][stuIdx]) === 'SUMMARY') {
       return { ok: false, error: 'Attendance for ' + p.date + ' (' + p.session + ') is already marked and final. Only the Admin (Head Qari) can correct it.' };
     }
   }
@@ -564,7 +577,7 @@ function correctAttendance(p) {
   const dIdx = headers.indexOf('Date'), sIdx = headers.indexOf('Session'), stuIdx = headers.indexOf('StudentID'), stIdx = headers.indexOf('Status');
   var targetRow = -1, summaryRow = -1;
   for (var i = 1; i < values.length; i++) {
-    if (String(values[i][dIdx]) !== String(p.date) || String(values[i][sIdx]) !== String(p.session)) continue;
+    if (fmtDate(values[i][dIdx]) !== String(p.date) || String(values[i][sIdx]) !== String(p.session)) continue;
     if (String(values[i][stuIdx]) === String(p.studentId)) targetRow = i + 1;
     if (String(values[i][stuIdx]) === 'SUMMARY') summaryRow = i + 1;
   }
@@ -632,7 +645,7 @@ function saveSabaq(s) {
   var headers = values[0];
   var dateIdx = headers.indexOf('Date'), stuIdx = headers.indexOf('StudentID');
   for (var i = 1; i < values.length; i++) {
-    if (String(values[i][dateIdx]) === String(date) && String(values[i][stuIdx]) === String(s.StudentID)) {
+    if (fmtDate(values[i][dateIdx]) === String(date) && String(values[i][stuIdx]) === String(s.StudentID)) {
       var row = { Date: date, StudentID: s.StudentID, Sabaq: s.Sabaq || '', Amount: s.Amount || '', TeacherNote: s.TeacherNote || '', MarkedBy: s.MarkedBy || '', Recited: s.Recited || 'Yes' };
       sh.getRange(i + 1, 1, 1, headers.length).setValues([headers.map(function (h) { return row[h] === undefined ? values[i][headers.indexOf(h)] : row[h]; })]);
       return { ok: true, updated: true };
