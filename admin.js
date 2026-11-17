@@ -28,9 +28,9 @@
   // getSettings, saveSettings, getLedger, recordLedger, getItems, saveItem,
   // getHistory, saveSabaq, getSabaq. Role is sent with every queued change
   // and Code.gs rejects actions the role may not do (see ROLE_DENY there).
-  // DEMO LOGIN ONLY: admin/admin123, editor/editor123, qari/qari123.
-  // Change these in Settings > Users after first login. This is NOT
-  // secure production auth — see SETUP-GUIDE.md.
+  // Login: the Admin account lives in the Sheet (Users tab). No
+  // passwords are written in this file or shown on the login screen.
+  // Auth is Sheet-based (demo-level) — see SETUP-GUIDE.md.
 
   var students = [], teachers = [], fees = [], accounts = [], receipts = [], attendance = [];
   var users = [], ledger = [], items = [], sabaq = [], classes = [], vehicles = [];
