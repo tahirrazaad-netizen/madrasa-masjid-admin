@@ -19,7 +19,7 @@
 
   // >>> PASTE YOUR IMGBB API KEY HERE, or set it in Settings (saved locally) <<<
   // Get a free key at https://api.imgbb.com/ — Settings in the admin panel overrides this.
-  var IMGBB_API_KEY = '';
+var IMGBB_API_KEY = '7c518fba909d6080ebfe626bafd6d4bb';
 
   function getKey() {
     try {
