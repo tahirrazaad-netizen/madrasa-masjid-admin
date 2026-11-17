@@ -15,51 +15,47 @@
  * here, because GitHub Pages is not hosted inside Apps Script.
  *
  * DATA: one Sheet, one tab per collection. Tabs + columns are created
- * automatically on first run. Demo rows are seeded ONLY ONCE (a script
- * property flag records that seeding happened), so deleting all real
- * rows will NEVER bring the demos back.
+ * automatically on first run. NO demo rows are ever seeded — the Sheet
+ * starts empty and only real data added by the Admin lives there.
+ * v6: English only, two roles (Admin + Qari), NO vehicle feature,
+ * NO Editor role, Messages + Salary tabs added.
  */
 
 // >>> PASTE YOUR GOOGLE SHEET ID HERE (between the quotes) <<<
 const SHEET_ID = '1s3w0Z7xSPOXnsY7F0H7CKwTndoXRPmXqCewjr6JZixc'; // Live Sheet "Madrasa Masjid Admin" — created 2026-11-17 via connected Google Sheets
 
-// v3 seed flag (v2 flag mm_seeded_v2 is superseded — v3 seeds the new Users email columns too).
-const SEED_FLAG = 'mm_seeded_v3';
-
-// SECURITY NOTE (read this): the Users tab stores a plain PIN/password
-// for DEMO login only. This is NOT secure production auth — anyone who
-// can read the Sheet can read it. It is a demo / small-trust-circle login
-// so the panel is not open to everyone. Real auth (Google sign-in check
-// in Apps Script) comes later. Never put a real Google/bank password here.
-// Reset/verification codes are 6 digits, valid 15 minutes, stored in the
-// Users tab (ResetCode / ResetExpiry) and cleared after use. In live mode
-// the code is emailed with MailApp and NEVER returned to the browser.
+// SECURITY NOTE (read this): the Users tab stores passwords in plain
+// text. This is NOT secure production auth — anyone who can read the
+// Sheet can read them. It is a small-trust-circle login so the panel is
+// not open to everyone. Never put a real Google/bank password here.
+// Only the main Admin creates or changes passwords.
 // Exact tab names and columns — do not rename, the frontend depends on them.
 const TABS = {
   Students: ['StudentID','Name','FatherName','Age','Class','Session1','Session2','NightSession','AdmissionDate','MonthlyFee','Status','FatherPhone','GuardianPhone','Address','AdmissionFeeAmount','AdmissionFeePaid','AdmissionFeeDate','AdmissionFeeReceiptNo','ClassHistory','PhotoURL','InCharge'],
   Teachers: ['TeacherID','Name','Phone','Class','JoinDate','LeaveDate','Status','MonthlySalary','PhotoURL'],
-  Users: ['UserID','Name','Role','Username','Password','Phone','Status','Email','EmailVerified','VerifiedDate','ResetCode','ResetExpiry','TeacherID','Permissions'],
+  Users: ['UserID','Name','Role','Username','Password','Phone','Status','Email','EmailVerified','VerifiedDate','ResetCode','ResetExpiry','TeacherID'],
   Attendance: ['Date','Session','StudentID','Status','MarkedBy'],
   Sabaq: ['Date','StudentID','Sabaq','Amount','TeacherNote','MarkedBy','Recited'],
   Fees: ['ReceiptNo','Date','StudentID','Month','Amount','Status','Method'],
   StudentLedger: ['LedgerID','Date','StudentID','Type','Amount','Method','ReceiptNo','Note'],
-  Accounts: ['Date','Fund','Type','Category','Item','Allocated','AllocatedAmount','SpentAmount','Amount','Description','ReceiptNo','EnteredBy','TeacherID','VehicleID'],
+  Accounts: ['Date','Fund','Type','Category','Item','Allocated','AllocatedAmount','SpentAmount','Amount','Description','ReceiptNo','EnteredBy','TeacherID'],
   Items: ['ItemID','ItemName','Fund','AllocatedAmount','SpentAmount','Status'],
-  Vehicles: ['VehicleID','VehicleNo','Type','Driver','Route','Status'],
   Classes: ['ClassID','ClassName','Level','Description','Status'],
   Receipts: ['ReceiptNo','Date','Fund','StudentID','TeacherID','Amount','Purpose'],
+  Messages: ['MessageID','Date','FromUserID','FromName','ToRole','Message','Status','Reply','RepliedBy','ReplyDate'],
+  Salary: ['SalaryID','TeacherID','Date','Type','Amount','ReceiptNo','Note'],
   Settings: ['Key','Value']
 };
 
 // Role permissions enforced server-side (frontend also hides sections).
-// Admin: everything. Editor: everything EXCEPT Settings + Users.
-// Qari: only attendance, sabaq, and read-only views of his own class.
-// Any other action from a Qari/Editor is rejected here.
+// Admin: everything. Qari: only attendance, sabaq, messages and
+// read-only views of his own class. Anything else from a Qari is
+// rejected here.
 const ROLE_DENY = {
   // Attendance marking is the assistant Qaris' job only. The Head Qari
-  // (Admin) monitors and corrects, but never marks. Editor marks nothing.
-  Editor: ['saveSettings', 'saveUser', 'saveClass', 'saveAttendance', 'correctAttendance', 'saveVehicle', 'restoreBackup', 'exportBackup'],
-  Qari: ['saveStudent', 'saveTeacher', 'recordFee', 'recordTransaction', 'saveSettings', 'saveUser', 'saveItem', 'recordLedger', 'saveClass', 'correctAttendance', 'saveVehicle', 'restoreBackup', 'exportBackup']
+  // (Admin) monitors and corrects, but never marks. A Qari may only mark
+  // attendance, record Sabaq and send a message to the Admin.
+  Qari: ['saveStudent', 'saveTeacher', 'recordFee', 'recordTransaction', 'saveSettings', 'saveUser', 'saveItem', 'recordLedger', 'saveClass', 'correctAttendance', 'saveSalaryPayment', 'restoreBackup', 'exportBackup']
 };
 
 function roleAllowed(role, action) {
@@ -90,7 +86,6 @@ function getTab(name) {
 
 function ensureAllTabs() {
   Object.keys(TABS).forEach(function (name) { getTab(name); ensureTabHeaders(name); });
-  seedDemoOnce();
   seedClassesOnce();
 }
 
@@ -198,55 +193,12 @@ function doPost(e) {
   }
 }
 
-/* ---------- demo seed (ONCE ONLY — never re-seeds) ---------- */
-
-function seedDemoOnce() {
-  const props = PropertiesService.getScriptProperties();
-  if (props.getProperty(SEED_FLAG)) return; // already seeded once — never again
-  const students = readRows('Students');
-  const users = readRows('Users');
-  const today = new Date();
-  const d = Utilities.formatDate(today, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  if (students.length === 0) {
-    appendRow('Students', { StudentID: 'STU-DEMO-01', Name: 'DEMO طالب علم (Demo Student — delete me)', FatherName: 'DEMO والد', Age: 10, Class: 'ناظرہ', Session1: 'yes', Session2: 'yes', NightSession: 'no', AdmissionDate: d, MonthlyFee: 0, Status: 'Current', FatherPhone: '', GuardianPhone: '', Address: 'DEMO گاؤں (Demo village)', AdmissionFeeAmount: 0, AdmissionFeePaid: 'No', AdmissionFeeDate: '', AdmissionFeeReceiptNo: '', ClassHistory: 'ناظرہ', PhotoURL: '' });
-    appendRow('Students', { StudentID: 'STU-DEMO-02', Name: 'DEMO حافظ طالب علم (Demo Hifz Completed — delete me)', FatherName: 'DEMO والد', Age: 14, Class: 'حفظ', Session1: 'yes', Session2: 'no', NightSession: 'yes', AdmissionDate: d, MonthlyFee: 0, Status: 'HifzCompleted', FatherPhone: '', GuardianPhone: '', Address: 'DEMO گاؤں (Demo village)', AdmissionFeeAmount: 0, AdmissionFeePaid: 'Yes', AdmissionFeeDate: d, AdmissionFeeReceiptNo: 'MSD-DEMO-ADM', ClassHistory: 'قاعدہ > ناظرہ > حفظ', PhotoURL: '' });
-    appendRow('Teachers', { TeacherID: 'TCH-DEMO-01', Name: 'DEMO قاری صاحب (Demo Teacher — delete me)', Phone: '', Class: 'حفظ', JoinDate: d, LeaveDate: '', Status: 'Active', MonthlySalary: 0, PhotoURL: '' });
-    appendRow('Accounts', { Date: d, Fund: 'Madrasa', Type: 'Income', Category: 'DEMO فیس', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: 0, Description: 'Demo row — delete me', ReceiptNo: '', EnteredBy: 'System', TeacherID: '' });
-    appendRow('Accounts', { Date: d, Fund: 'Masjid', Type: 'Income', Category: 'DEMO چندہ', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: 0, Description: 'Demo row — delete me', ReceiptNo: '', EnteredBy: 'System', TeacherID: '' });
-  }
-  if (users.length === 0) {
-    // DEMO logins — change the passwords in Settings > Users after first login.
-    appendRow('Users', { UserID: 'USR-DEMO-ADMIN', Name: 'DEMO ایڈمن (Demo Admin)', Role: 'Admin', Username: 'admin', Password: 'admin123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' });
-    appendRow('Users', { UserID: 'USR-DEMO-EDITOR', Name: 'DEMO ایڈیٹر (Demo Editor)', Role: 'Editor', Username: 'editor', Password: 'editor123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' });
-    appendRow('Users', { UserID: 'USR-DEMO-QARI', Name: 'DEMO قاری صاحب (Demo Qari)', Role: 'Qari', Username: 'qari', Password: 'qari123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' });
-  }
-  // Default (white-label) Settings — Admin edits these in Settings; no Madrasa name is hard-coded in the HTML.
-  const settings = getSettingsObj();
-  if (!settings.MadrasaName) {
-    upsertSetting('MadrasaName', 'مدرسہ (Madrasa Name — change in Settings)');
-    upsertSetting('MasjidName', 'مسجد (Masjid Name — change in Settings)');
-    upsertSetting('AdminName', 'ایڈمن (Admin Name)');
-    upsertSetting('AdminPhone', '');
-    upsertSetting('AdminWhatsApp', '');
-    upsertSetting('Address', '');
-    upsertSetting('LogoURL', '');
-    upsertSetting('ThemeColor', '#0e7a5f');
-  }
-  props.setProperty(SEED_FLAG, 'done');
-}
-
 /* ---------- actions (every fetch() call in admin.js / order.js maps to one of these) ---------- */
 
 function handleAction(action, p) {
   const role = p.role || p.Role || 'Admin';
   // Login does not need a role yet; everything else is role-checked.
   if (action === 'login') return login(p.username || p.Username, p.password || p.Password);
-  // v3 public flows (no login yet): forgot-password + email verification.
-  if (action === 'requestPasswordReset') return requestPasswordReset(p.identifier || p.username || p.Username || p.email || p.Email);
-  if (action === 'verifyResetCode') return verifyResetCode(p.identifier || p.username || p.Username || p.email || p.Email, p.code || p.Code);
-  if (action === 'resetPassword') return resetPassword(p.identifier || p.username || p.Username || p.email || p.Email, p.code || p.Code, p.newPassword || p.password || p.Password);
-  if (action === 'requestEmailVerification') return requestEmailVerification(p.userId || p.UserID);
-  if (action === 'verifyEmail') return verifyEmail(p.userId || p.UserID, p.code || p.Code);
   if (!roleAllowed(role, action)) {
     return { ok: false, error: 'Not allowed for role ' + role + ': ' + action };
   }
@@ -264,8 +216,6 @@ function handleAction(action, p) {
     case 'saveAttendance': return saveAttendance(p);
     case 'correctAttendance': return correctAttendance(p);
     case 'getAttendance': return { ok: true, attendance: readRows('Attendance') };
-    case 'getVehicles': return { ok: true, vehicles: readRows('Vehicles') };
-    case 'saveVehicle': return saveVehicle(p.vehicle || p);
     case 'exportBackup': return exportBackup();
     case 'restoreBackup': return restoreBackup(p.backup || p);
     case 'saveSabaq': return saveSabaq(p.sabaq || p);
@@ -282,135 +232,21 @@ function handleAction(action, p) {
     case 'saveClass': return saveClass(p.classObj || p);
     case 'getHistory': return getHistory(p);
     case 'getReceipts': return { ok: true, receipts: readRows('Receipts') };
+    case 'getMessages': return getMessages(p);
+    case 'sendMessage': return sendMessage(p.message || p);
+    case 'resolveMessage': return resolveMessage(p);
+    case 'replyMessage': return replyMessage(p);
+    case 'getSalary': return getSalary(p);
+    case 'saveSalaryPayment': return saveSalaryPayment(p);
     default: return { ok: false, error: 'Unknown action: ' + action };
   }
-}
-
-/* ---------- v3: forgot password + add/verify email ---------- */
-
-function gen6DigitCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function findUserByIdentifier(identifier) {
-  const id = String(identifier || '').trim().toLowerCase();
-  if (!id) return null;
-  const users = readRows('Users');
-  return users.filter(function (x) {
-    return String(x.Username || '').toLowerCase() === id || String(x.Email || '').toLowerCase() === id;
-  })[0] || null;
-}
-
-function findUserById(userId) {
-  const users = readRows('Users');
-  return users.filter(function (x) { return String(x.UserID) === String(userId); })[0] || null;
-}
-
-function codeStillValid(user, code) {
-  if (!user || !user.ResetCode) return false;
-  if (String(user.ResetCode) !== String(code).trim()) return false;
-  const exp = user.ResetExpiry ? new Date(user.ResetExpiry).getTime() : 0;
-  return exp > new Date().getTime();
-}
-
-function storeResetCode(user) {
-  const code = gen6DigitCode();
-  const expiry = new Date(new Date().getTime() + 15 * 60 * 1000); // 15 minutes
-  upsertRow('Users', 'UserID', user.UserID, Object.assign({}, user, { ResetCode: code, ResetExpiry: expiry.toISOString() }));
-  return { code: code, expiry: expiry };
-}
-
-// Try to email the code. Returns true only if MailApp accepted it.
-// MailApp.sendEmail needs the script to run as a Google account with
-// mail permission; if it throws (no email, no permission, quota), we
-// return false and the caller must NOT claim an email was sent.
-function sendCodeEmail(to, name, code, purpose) {
-  if (!to) return false;
-  try {
-    const settings = getSettingsObj();
-    const brand = settings.MadrasaName || 'Madrasa + Masjid';
-    MailApp.sendEmail({
-      to: String(to),
-      subject: brand + ' — ' + purpose + ' code: ' + code,
-      body: 'Assalam-o-Alaikum ' + (name || '') + ',\n\nYour ' + purpose + ' code for ' + brand + ' is: ' + code + '\n\nThis code expires in 15 minutes. Do not share it with anyone.\n\n— ' + brand
-    });
-    return true;
-  } catch (e) { return false; }
-}
-
-function requestPasswordReset(identifier) {
-  const user = findUserByIdentifier(identifier);
-  if (!user) return { ok: false, error: 'No account found with that username or email.' };
-  const stored = storeResetCode(user);
-  if (!user.Email) {
-    // No email saved: the Admin must reset it from Settings > Users.
-    return { ok: true, emailed: false, delivery: 'code_pending_admin', message: 'No email is saved on this account. Ask the Admin to reset the password from Settings > Users.' };
-  }
-  const emailed = sendCodeEmail(user.Email, user.Name, stored.code, 'Password reset');
-  if (!emailed) return { ok: true, emailed: false, delivery: 'code_pending_admin', message: 'Email could not be sent (check MailApp permission / email address). Ask the Admin to reset the password from Settings > Users.' };
-  return { ok: true, emailed: true, delivery: 'emailed', message: 'A 6-digit reset code was emailed to ' + user.Email + '. It expires in 15 minutes.' };
-}
-
-function verifyResetCode(identifier, code) {
-  const user = findUserByIdentifier(identifier);
-  if (!user) return { ok: false, error: 'No account found.' };
-  if (!codeStillValid(user, code)) return { ok: false, error: 'Wrong code, or the code has expired (15 minutes). Request a new code.' };
-  return { ok: true };
-}
-
-function resetPassword(identifier, code, newPassword) {
-  const user = findUserByIdentifier(identifier);
-  if (!user) return { ok: false, error: 'No account found.' };
-  if (!codeStillValid(user, code)) return { ok: false, error: 'Wrong code, or the code has expired (15 minutes). Request a new code.' };
-  if (!newPassword || String(newPassword).length < 4) return { ok: false, error: 'New password must be at least 4 characters.' };
-  upsertRow('Users', 'UserID', user.UserID, Object.assign({}, user, { Password: String(newPassword), ResetCode: '', ResetExpiry: '' }));
-  return { ok: true, message: 'Password changed. Please log in with your new password.' };
-}
-
-function saveUserEmail(p) {
-  // p: { userId, email, requesterUserId, role }
-  const target = findUserById(p.userId || p.UserID);
-  if (!target) return { ok: false, error: 'User not found.' };
-  const requesterId = p.requesterUserId || p.requesterId || '';
-  const role = p.role || p.Role || 'Admin';
-  // Admin can change any user's email; Editor/Qari can only change their OWN.
-  if (role !== 'Admin' && String(requesterId) !== String(target.UserID)) {
-    return { ok: false, error: 'You can only change your own email.' };
-  }
-  const email = String(p.email || p.Email || '').trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: 'Please enter a valid email address.' };
-  // Email must be unique across users.
-  const clash = readRows('Users').filter(function (x) { return String(x.UserID) !== String(target.UserID) && String(x.Email || '').toLowerCase() === email.toLowerCase(); })[0];
-  if (clash) return { ok: false, error: 'That email is already used by another user.' };
-  const changed = email.toLowerCase() !== String(target.Email || '').toLowerCase();
-  upsertRow('Users', 'UserID', target.UserID, Object.assign({}, target, { Email: email, EmailVerified: changed ? 'No' : (target.EmailVerified || 'No'), VerifiedDate: changed ? '' : (target.VerifiedDate || '') }));
-  return { ok: true, email: email, emailVerified: changed ? 'No' : (target.EmailVerified || 'No'), message: changed ? 'Email saved. Please verify it with the 6-digit code.' : 'Email saved.' };
-}
-
-function requestEmailVerification(userId) {
-  const user = findUserById(userId);
-  if (!user) return { ok: false, error: 'User not found.' };
-  if (!user.Email) return { ok: false, error: 'No email saved on this account yet. Add an email first.' };
-  const stored = storeResetCode(user);
-  const emailed = sendCodeEmail(user.Email, user.Name, stored.code, 'Email verification');
-  if (!emailed) return { ok: true, emailed: false, delivery: 'code_pending_admin', message: 'Email could not be sent (check MailApp permission). Ask the Admin for help.' };
-  return { ok: true, emailed: true, delivery: 'emailed', message: 'A 6-digit verification code was emailed to ' + user.Email + '. It expires in 15 minutes.' };
-}
-
-function verifyEmail(userId, code) {
-  const user = findUserById(userId);
-  if (!user) return { ok: false, error: 'User not found.' };
-  if (!codeStillValid(user, code)) return { ok: false, error: 'Wrong code, or the code has expired (15 minutes). Request a new code.' };
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  upsertRow('Users', 'UserID', user.UserID, Object.assign({}, user, { EmailVerified: 'Yes', VerifiedDate: today, ResetCode: '', ResetExpiry: '' }));
-  return { ok: true, message: 'Email verified.' };
 }
 
 function login(username, password) {
   const users = readRows('Users');
   const u = users.filter(function (x) { return String(x.Username) === String(username) && String(x.Password) === String(password) && x.Status === 'Active'; })[0];
   if (!u) return { ok: false, error: 'Wrong username or password, or account disabled.' };
-  return { ok: true, user: { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone, Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '', Permissions: u.Permissions || '' } };
+  return { ok: true, user: { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone, Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '' } };
 }
 
 function nextReceiptNo() {
@@ -514,7 +350,7 @@ function saveTeacher(t) {
 function saveUser(u) {
   if (!u.UserID) u.UserID = 'USR-' + new Date().getTime();
   if (!u.Username || !u.Role) return { ok: false, error: 'Username and Role are required.' };
-  if (['Admin', 'Editor', 'Qari'].indexOf(u.Role) === -1) return { ok: false, error: 'Role must be Admin, Editor or Qari.' };
+  if (['Admin', 'Qari'].indexOf(u.Role) === -1) return { ok: false, error: 'Role must be Admin or Qari.' };
   if (!u.Status) u.Status = 'Active';
   // Password: only overwrite when a new one is supplied (edit form may leave it blank).
   const existing = readRows('Users').filter(function (x) { return String(x.UserID) === String(u.UserID); })[0];
@@ -605,12 +441,55 @@ function correctAttendance(p) {
   return { ok: true, present: present, absent: absent, leave: leave };
 }
 
-function saveVehicle(v) {
-  if (!v.VehicleID) v.VehicleID = 'VEH-' + new Date().getTime();
-  if (!v.VehicleNo) return { ok: false, error: 'Vehicle number is required.' };
-  if (!v.Status) v.Status = 'Active';
-  upsertRow('Vehicles', 'VehicleID', v.VehicleID, v);
-  return { ok: true, vehicle: v };
+/* ---------- messages: Qari -> Admin (saved in the Sheet) ---------- */
+function sendMessage(m) {
+  if (!m.MessageID) m.MessageID = 'MSG-' + new Date().getTime();
+  if (!m.Message) return { ok: false, error: 'Message text is required.' };
+  if (!m.Date) m.Date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  if (!m.Status) m.Status = 'Unread';
+  appendRow('Messages', { MessageID: m.MessageID, Date: m.Date, FromUserID: m.FromUserID || '', FromName: m.FromName || '', ToRole: m.ToRole || 'Admin', Message: m.Message, Status: m.Status, Reply: '', RepliedBy: '', ReplyDate: '' });
+  return { ok: true, message: m };
+}
+function getMessages(p) {
+  p = p || {};
+  var rows = readRows('Messages');
+  // A Qari sees only his own messages; the Admin sees all.
+  if ((p.role || p.Role) === 'Qari' && p.userId) rows = rows.filter(function (x) { return String(x.FromUserID) === String(p.userId); });
+  return { ok: true, messages: rows };
+}
+function resolveMessage(p) {
+  var rows = readRows('Messages');
+  var m = rows.filter(function (x) { return String(x.MessageID) === String(p.messageId || p.MessageID); })[0];
+  if (!m) return { ok: false, error: 'Message not found.' };
+  upsertRow('Messages', 'MessageID', m.MessageID, Object.assign({}, m, { Status: 'Read' }));
+  return { ok: true };
+}
+function replyMessage(p) {
+  var rows = readRows('Messages');
+  var m = rows.filter(function (x) { return String(x.MessageID) === String(p.messageId || p.MessageID); })[0];
+  if (!m) return { ok: false, error: 'Message not found.' };
+  upsertRow('Messages', 'MessageID', m.MessageID, Object.assign({}, m, { Reply: p.reply || '', RepliedBy: p.repliedBy || '', ReplyDate: p.replyDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), Status: 'Read' }));
+  return { ok: true };
+}
+
+/* ---------- salary: monthly salary / advance payments to a Qari ---------- */
+function saveSalaryPayment(p) {
+  var pay = p.payment || p;
+  if (!pay.TeacherID) return { ok: false, error: 'Teacher is required.' };
+  if (!pay.Amount) return { ok: false, error: 'Amount is required.' };
+  var receiptNo = nextReceiptNo();
+  var date = pay.Date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var row = { SalaryID: 'SAL-' + new Date().getTime(), TeacherID: pay.TeacherID, Date: date, Type: pay.Type || 'Salary', Amount: Number(pay.Amount), ReceiptNo: receiptNo, Note: pay.Note || '' };
+  appendRow('Salary', row);
+  appendRow('Receipts', { ReceiptNo: receiptNo, Date: date, Fund: 'Madrasa', StudentID: '', TeacherID: pay.TeacherID, Amount: row.Amount, Purpose: (row.Type === 'Advance' ? 'Advance to teacher' : 'Monthly salary') + (row.Note ? ' — ' + row.Note : '') });
+  appendRow('Accounts', { Date: date, Fund: 'Madrasa', Type: 'Expense', Category: row.Type === 'Advance' ? 'Advance' : 'Salary', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: row.Amount, Amount: row.Amount, Description: (row.Type === 'Advance' ? 'Advance to ' : 'Salary for ') + pay.TeacherID, ReceiptNo: receiptNo, EnteredBy: '', TeacherID: pay.TeacherID });
+  return { ok: true, receiptNo: receiptNo, payment: row };
+}
+function getSalary(p) {
+  p = p || {};
+  var rows = readRows('Salary');
+  if (p.teacherId) rows = rows.filter(function (r) { return String(r.TeacherID) === String(p.teacherId); });
+  return { ok: true, salary: rows };
 }
 
 // Full backup: every tab's rows as JSON (Admin only — see ROLE_DENY).
@@ -699,7 +578,7 @@ function recordFee(f) {
   const feeRow = { ReceiptNo: receiptNo, Date: date, StudentID: f.studentId || f.StudentID, Month: f.month || f.Month, Amount: Number(f.amount || f.Amount || 0), Status: 'Paid', Method: f.method || f.Method || 'Cash' };
   appendRow('Fees', feeRow);
   appendRow('Receipts', { ReceiptNo: receiptNo, Date: date, Fund: 'Madrasa', StudentID: feeRow.StudentID, TeacherID: '', Amount: feeRow.Amount, Purpose: 'Monthly fee ' + feeRow.Month });
-  appendRow('Accounts', { Date: date, Fund: 'Madrasa', Type: 'Income', Category: 'فیس', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: feeRow.Amount, Description: 'Fee ' + feeRow.Month + ' — ' + feeRow.StudentID, ReceiptNo: receiptNo, EnteredBy: f.enteredBy || '', TeacherID: '' });
+  appendRow('Accounts', { Date: date, Fund: 'Madrasa', Type: 'Income', Category: 'Fee', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: feeRow.Amount, Description: 'Fee ' + feeRow.Month + ' — ' + feeRow.StudentID, ReceiptNo: receiptNo, EnteredBy: f.enteredBy || '', TeacherID: '' });
   // Also mirror into the per-student ledger.
   appendRow('StudentLedger', { LedgerID: 'LED-' + new Date().getTime(), Date: date, StudentID: feeRow.StudentID, Type: 'Fee', Amount: feeRow.Amount, Method: feeRow.Method, ReceiptNo: receiptNo, Note: 'Monthly fee ' + feeRow.Month });
   // Qari notification is a LOG entry only — real push notification comes later. Do not treat as sent.
@@ -716,7 +595,7 @@ function recordLedger(e) {
   appendRow('StudentLedger', row);
   if (row.Type === 'PaymentFromHome') {
     appendRow('Receipts', { ReceiptNo: receiptNo, Date: date, Fund: 'Madrasa', StudentID: row.StudentID, TeacherID: '', Amount: row.Amount, Purpose: 'Payment from home — ' + row.Note });
-    appendRow('Accounts', { Date: date, Fund: 'Madrasa', Type: 'Income', Category: 'گھر سے وصولی', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: row.Amount, Description: 'Payment from home — ' + row.StudentID, ReceiptNo: receiptNo, EnteredBy: '', TeacherID: '' });
+    appendRow('Accounts', { Date: date, Fund: 'Madrasa', Type: 'Income', Category: 'Payment from home', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: row.Amount, Description: 'Payment from home — ' + row.StudentID, ReceiptNo: receiptNo, EnteredBy: '', TeacherID: '' });
   }
   return { ok: true, receiptNo: receiptNo, entry: row };
 }
@@ -737,7 +616,7 @@ function recordTransaction(t) {
   if (!t.amount && t.amount !== 0) return { ok: false, error: 'Amount is required.' };
   let receiptNo = t.receiptNo || t.ReceiptNo || '';
   if (t.type === 'Income' && !receiptNo) receiptNo = nextReceiptNo();
-  const row = { Date: t.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), Fund: t.fund, Type: t.type, Category: t.category || '', Item: t.item || '', Allocated: t.allocated || '', AllocatedAmount: Number(t.allocatedAmount || 0), SpentAmount: Number(t.type === 'Expense' ? t.amount : 0), Amount: Number(t.amount), Description: t.description || '', ReceiptNo: receiptNo, EnteredBy: t.enteredBy || '', TeacherID: t.teacherId || t.TeacherID || '', VehicleID: t.vehicleId || t.VehicleID || '' };
+  const row = { Date: t.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), Fund: t.fund, Type: t.type, Category: t.category || '', Item: t.item || '', Allocated: t.allocated || '', AllocatedAmount: Number(t.allocatedAmount || 0), SpentAmount: Number(t.type === 'Expense' ? t.amount : 0), Amount: Number(t.amount), Description: t.description || '', ReceiptNo: receiptNo, EnteredBy: t.enteredBy || '', TeacherID: t.teacherId || t.TeacherID || '' };
   appendRow('Accounts', row);
   // Keep the Items/Budget sheet in sync when an expense names an item.
   if (row.Type === 'Expense' && row.Item) {

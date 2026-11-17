@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel (CMS) — Madrasa + Masjid</title>
 <link rel="stylesheet" href="admin.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -18,15 +17,14 @@
     <p class="hint" data-i18n="loginHint">Log in to continue</p>
     <form id="loginForm" onsubmit="doLoginUI(event)">
       <label data-i18n="username">Username</label>
-      <input id="loginUser" required autocomplete="username" placeholder="admin">
+      <input id="loginUser" required autocomplete="username">
       <label data-i18n="password">Password</label>
-      <input id="loginPass" type="password" required autocomplete="current-password" placeholder="••••••••">
+      <input id="loginPass" type="password" required autocomplete="current-password">
       <br><br>
       <button class="btn" type="submit" style="width:100%" data-i18n="login">Log in</button>
     </form>
     <p class="login-error" id="loginError"></p>
     <p class="hint" data-i18n="forgotNote">Forgot your password? Only the main Admin can reset it. Please contact the Admin.</p>
-    <p style="text-align:center"><button class="btn secondary small" type="button" onclick="toggleLang()">اردو / English</button></p>
   </div>
 </div>
 
@@ -57,9 +55,9 @@
       <button onclick="newEntry('vehicle')" data-i18n="newVehicle">New Vehicle</button>
     </div>
   </div>
-  <button class="btn secondary" id="langToggle" onclick="toggleLang()">اردو</button>
   <span class="whoami" id="whoami"></span>
-  <button class="sync-pill" id="syncPill" onclick="syncNowUI()" title="Sync now">Saved locally</button>
+  <button class="sync-pill" id="syncPill" onclick="syncNowUI()" title="Sync now">Saved on this device</button>
+  <button class="btn secondary" id="headerBackupBtn" onclick="downloadBackupUI()">Backup</button>
   <button class="btn secondary" onclick="logoutUI()" data-i18n="logout">Log out</button>
 </header>
 
@@ -68,9 +66,9 @@
     <div class="sidebar-head"><span class="brand-mark sm" aria-hidden="true">M</span><span class="sidebar-title">Admin Panel</span></div>
     <button data-section="dashboard" class="active" onclick="showSection('dashboard')" data-i18n="navDashboard">Dashboard</button>
     <button data-section="my-class" onclick="showSection('my-class')" data-i18n="navMyClass">My Class</button>
+    <button data-section="messages" onclick="showSection('messages')">Messages</button>
     <button data-section="students" onclick="showSection('students')" data-i18n="navStudents">Students</button>
     <button data-section="teachers" onclick="showSection('teachers')" data-i18n="navTeachers">Teachers</button>
-    <button data-section="vehicles" onclick="showSection('vehicles')" data-i18n="navVehicles">Vehicles</button>
     <button data-section="attendance" onclick="showSection('attendance')" data-i18n="navAttendance">Attendance</button>
     <button data-section="sabaq" onclick="showSection('sabaq')" data-i18n="navSabaq">Sabaq &amp; Daily Report</button>
     <button data-section="fees" onclick="showSection('fees')" data-i18n="navFees">Fees</button>
@@ -104,8 +102,10 @@
     <section class="section" id="section-my-class">
       <h2 data-i18n="myClassTitle">My Class</h2>
       <p class="hint" data-i18n="myClassHint">Your class only — your students, today's attendance, Sabaq and your class graph.</p>
+      <div class="notice" id="myClassNotice" style="display:none">Your account is not linked to a teacher record yet. Ask the Admin to link it in Settings &gt; Users, then your students will appear here.</div>
+      <p><button class="btn secondary" onclick="openMyProfile()">My profile &amp; salary</button></p>
       <div class="cards" id="myClassCards"></div>
-      <div class="panel"><h3 data-i18n="myClassAttChart">My class — attendance, last 14 days</h3><div class="chart-box"><canvas id="chartMyClass"></canvas></div><div class="chart-fallback" id="chartMyClassFallback" style="display:none"></div></div>
+      <div class="panel"><h3 data-i18n="myClassAttChart">My class — attendance, last 14 days</h3><div class="chart-box"><div id="chartMyClass" class="svg-chart"></div></div></div>
       <div class="panel">
         <h3 data-i18n="myClassToday">Today's attendance — quick mark</h3>
         <div class="grid">
@@ -121,12 +121,34 @@
         <span class="size-note" id="myAttSavedNote"></span>
       </div>
       <div class="panel">
+        <h3>Message to Admin</h3>
+        <p class="hint">Send a problem, request or update to the Admin. It is saved in the Sheet.</p>
+        <form onsubmit="sendMessageUI(event)">
+          <textarea id="myMsgText" rows="3" style="width:100%" placeholder="Write your message to the Admin…"></textarea><br><br>
+          <button class="btn" type="submit">Send message to Admin</button>
+        </form>
+      </div>
+      <div class="panel">
         <h3 data-i18n="myClassStudents">My students</h3>
         <div class="table-wrap"><table>
           <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thFather">Father</th><th data-i18n="thClass">Class</th><th data-i18n="thSessions">Sessions</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
           <tbody id="myClassTable"></tbody>
         </table></div>
       </div>
+    </section>
+
+    <!-- MESSAGES -->
+    <section class="section" id="section-messages">
+      <h2>Messages</h2>
+      <p class="hint">Qari sends a message to the Admin. Admin can view all messages, mark them as read and reply. <span id="msgUnreadCount"></span></p>
+      <div class="panel">
+        <h3>Send a message to the Admin</h3>
+        <form onsubmit="sendMessageUI(event)">
+          <textarea id="msgText" rows="3" style="width:100%" placeholder="Problem, request or update…"></textarea><br><br>
+          <button class="btn" type="submit">Send message</button>
+        </form>
+      </div>
+      <div id="messagesList">—</div>
     </section>
 
     <!-- STUDENTS -->
@@ -171,6 +193,7 @@
         </form>
       </div>
       <div class="toolbar">
+        <button class="btn admin-only-add" onclick="newEntry('student')">Add New Student</button>
         <input id="stSearch" data-i18n-ph="stSearchPh" placeholder="Search — name / father / class / location" oninput="renderStudents()">
         <select id="stFilterStatus" onchange="renderStudents()">
           <option value="" data-i18n="allStatuses">All statuses</option><option value="Current">Current</option><option value="HifzCompleted">Hifz Completed</option><option value="Left">Left</option>
@@ -221,6 +244,7 @@
     <section class="section" id="section-teachers">
       <h2 data-i18n="navTeachers">Teachers</h2>
       <p class="hint" data-i18n="teachersHint">A teacher is never deleted — only the status changes: Active / Left. Click a name to open the profile.</p>
+      <p><button class="btn admin-only-add" onclick="newEntry('teacher')">Add New Teacher</button></p>
       <div class="panel" id="teacherFormPanel">
         <h3 data-i18n="addTeacher">Add teacher</h3>
         <form id="teacherForm" onsubmit="saveTeacherUI(event)">
@@ -267,7 +291,7 @@
         </div><br>
         <button class="btn secondary" type="button" onclick="renderAttendanceList()" data-i18n="showList">Show list</button>
       </div>
-      <div class="panel">
+      <div class="panel" id="attMarkPanel">
         <h3 id="attCount">—</h3>
         <div class="att-list" id="attList"></div><br>
         <button class="btn" onclick="saveAttendanceUI()" data-i18n="saveAttendance">Save attendance</button>
@@ -343,7 +367,8 @@
         <h3 data-i18n="receiptTitle">Receipt — print it</h3>
         <div class="receipt" id="receiptView"></div><br>
         <button class="btn secondary no-print" onclick="window.print()" data-i18n="print">Print</button>
-        <button class="btn secondary no-print" onclick="printReceiptSlip(document.querySelector('#receiptView b') ? document.querySelector('#receiptView b').textContent : '')" data-i18n="printSlip">Print slip</button>
+        <button class="btn secondary no-print" onclick="printReceiptSlip(window.lastReceiptNo || '')" data-i18n="printSlip">Print slip</button>
+        <button class="btn secondary no-print" onclick="downloadReceiptSlip(window.lastReceiptNo || '')">Download slip</button>
       </div>
       <div class="panel"><h3 data-i18n="feesListTitle">Fees list</h3><div class="table-wrap"><table>
         <thead><tr><th data-i18n="thReceipt">Receipt No.</th><th data-i18n="thDate">Date</th><th data-i18n="thName">Name</th><th data-i18n="thMonth">Month</th><th data-i18n="thAmount">Amount</th><th data-i18n="thStatus">Status</th></tr></thead>
@@ -389,7 +414,6 @@
             <div><label data-i18n="fAllocatedQ">Allocated to this item?</label><select id="txAllocated"><option value="">—</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
             <div><label data-i18n="fAllocated">Allocated amount (Rs)</label><input id="txAllocAmount" type="number" min="0" value="0"></div>
             <div><label data-i18n="fTeacher">Teacher — for salary / advance</label><select id="txTeacher"><option value="">—</option></select></div>
-            <div><label data-i18n="fVehicle">Vehicle — for vehicle expenses</label><select id="txVehicle"><option value="">—</option></select></div>
             <div><label data-i18n="fAmount">Amount (Rs) *</label><input id="txAmount" type="number" min="0" required></div>
             <div><label data-i18n="fDate">Date</label><input id="txDate" type="date"></div>
             <div class="full"><label data-i18n="fDesc">Description</label><input id="txDesc" placeholder="For what?"></div>
@@ -400,7 +424,7 @@
       <div class="panel"><div class="toolbar">
         <select id="txFilterFund" onchange="renderAccounts()"><option value="" data-i18n="bothFunds">Both funds</option><option value="Madrasa">Madrasa</option><option value="Masjid">Masjid</option></select>
       </div><div class="table-wrap"><table>
-        <thead><tr><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="fType">Type</th><th data-i18n="fCategory">Category</th><th data-i18n="thItem">Item</th><th data-i18n="fAllocatedQ">Allocated?</th><th data-i18n="thVehicle">Vehicle</th><th data-i18n="thAmount">Amount</th><th data-i18n="fDesc">Description</th><th data-i18n="thReceipt">Receipt No.</th></tr></thead>
+        <thead><tr><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="fType">Type</th><th data-i18n="fCategory">Category</th><th data-i18n="thItem">Item</th><th data-i18n="fAllocatedQ">Allocated?</th><th data-i18n="thAmount">Amount</th><th data-i18n="fDesc">Description</th><th data-i18n="thReceipt">Receipt No.</th></tr></thead>
         <tbody id="accountsTable"></tbody>
       </table></div></div>
     </section>
@@ -431,42 +455,17 @@
       </table></div></div>
     </section>
 
-    <!-- VEHICLES -->
-    <section class="section" id="section-vehicles">
-      <h2 data-i18n="vehiclesTitle">Vehicles</h2>
-      <p class="hint" data-i18n="vehiclesHint">Vehicle expenses are tracked separately from other expenses — pick a vehicle when adding a transaction.</p>
-      <div class="panel">
-        <h3 data-i18n="vehiclesTitle">Vehicles</h3>
-        <form id="vehicleForm" onsubmit="saveVehicleUI(event)">
-          <div class="grid">
-            <div><label data-i18n="vehicleNo">Vehicle number *</label><input id="vehNo" required placeholder="e.g. LHR-1234"></div>
-            <div><label data-i18n="vehicleType">Type</label><input id="vehType" placeholder="Van / Bus / Car"></div>
-            <div><label data-i18n="vehicleDriver">Driver</label><input id="vehDriver"></div>
-            <div><label data-i18n="vehicleRoute">Route</label><input id="vehRoute" placeholder="e.g. Khudian — Chunian"></div>
-            <div><label data-i18n="fStatus">Status</label><select id="vehStatus"><option value="Active">Active</option><option value="Closed">Closed</option></select></div>
-          </div><br>
-          <input type="hidden" id="vehId">
-          <button class="btn" type="submit" data-i18n="save">Save</button>
-          <button class="btn secondary" type="button" onclick="resetVehicleForm()" data-i18n="clear">Clear</button>
-        </form>
-        <br>
-        <div class="table-wrap"><table>
-          <thead><tr><th data-i18n="vehicleNo">Vehicle number</th><th data-i18n="vehicleType">Type</th><th data-i18n="vehicleDriver">Driver</th><th data-i18n="vehicleRoute">Route</th><th data-i18n="thStatus">Status</th><th data-i18n="vehicleExpenses">Vehicle expenses</th><th data-i18n="thAction">Action</th></tr></thead>
-          <tbody id="vehiclesTable"></tbody>
-        </table></div>
-      </div>
-    </section>
-
     <!-- REPORTS & GRAPHS -->
     <section class="section" id="section-reports">
       <h2 data-i18n="navReports">Reports &amp; Graphs</h2>
       <p class="hint" data-i18n="reportsHint">Live graphs from the Google Sheet data.</p>
       <div class="charts-grid">
-        <div class="panel"><h3 data-i18n="chAtt">Attendance — last 14 days (Present / Absent / Leave)</h3><div class="chart-box"><canvas id="chartAtt"></canvas></div><div class="chart-fallback" id="chartAttFallback" style="display:none"></div></div>
-        <div class="panel"><h3 data-i18n="chClass">Students by class</h3><div class="chart-box"><canvas id="chartClass"></canvas></div><div class="chart-fallback" id="chartClassFallback" style="display:none"></div></div>
-        <div class="panel"><h3 data-i18n="chFees">Fees collected by month</h3><div class="chart-box"><canvas id="chartFees"></canvas></div><div class="chart-fallback" id="chartFeesFallback" style="display:none"></div></div>
-        <div class="panel"><h3 data-i18n="chFunds">Income vs Expense by fund</h3><div class="chart-box"><canvas id="chartFunds"></canvas></div><div class="chart-fallback" id="chartFundsFallback" style="display:none"></div></div>
-        <div class="panel"><h3 data-i18n="chAdm">New admissions by month</h3><div class="chart-box"><canvas id="chartAdm"></canvas></div><div class="chart-fallback" id="chartAdmFallback" style="display:none"></div></div>
+        <div class="panel"><h3 data-i18n="chAtt">Attendance — last 14 days (Present / Absent / Leave)</h3><div class="chart-box"><div id="chartAtt" class="svg-chart"></div></div></div>
+        <div class="panel"><h3 data-i18n="chClass">Students by class</h3><div class="chart-box"><div id="chartClass" class="svg-chart"></div></div></div>
+        <div class="panel"><h3 data-i18n="chFees">Fees collected by month</h3><div class="chart-box"><div id="chartFees" class="svg-chart"></div></div></div>
+        <div class="panel"><h3 data-i18n="chFunds">Income vs Expense by fund</h3><div class="chart-box"><div id="chartFunds" class="svg-chart"></div></div></div>
+        <div class="panel"><h3 data-i18n="chAdm">New admissions by month</h3><div class="chart-box"><div id="chartAdm" class="svg-chart"></div></div></div>
+        <div class="panel"><h3>Students — Current / Hifz Completed / Left</h3><div class="chart-box"><div id="chartStatus" class="svg-chart"></div></div></div>
       </div>
     </section>
 
@@ -490,6 +489,7 @@
       </div>
       <div class="panel">
         <h3 data-i18n="classesTitle">Classes — define class names &amp; levels</h3>
+        <p><button class="btn secondary admin-only-add" onclick="newEntry('class')">Add New Class</button></p>
         <p class="hint" data-i18n="classesHint">Define each class once, e.g. Qaida, Nazra, Hifz, Alim-e-Deen Level 1–8, Fazil. Each level is a separate class, so Alim-e-Deen Level 1 and Level 2 never mix.</p>
         <form onsubmit="saveClassUI(event)">
           <div class="grid">
@@ -513,7 +513,7 @@
           <div class="full"><label data-i18n="fApiUrl">Apps Script Web App URL (paste after deploying Code.gs)</label>
             <input id="setApiUrl" dir="ltr" placeholder="https://script.google.com/macros/s/AKfyc.../exec"></div>
           <div class="full"><label data-i18n="fImgbb">ImgBB API Key (for hosting photos — free key at https://api.imgbb.com/)</label>
-            <input id="setImgbb" dir="ltr" placeholder="paste ImgBB API key here"></div>
+            <input id="setImgbb" type="password" dir="ltr" placeholder="paste ImgBB API key here"></div>
         </div><br>
         <button class="btn" id="saveSettingsBtn" onclick="saveSettingsUI()" data-i18n="saveSettings">Save settings</button>
         <button class="btn secondary" onclick="syncNowUI()" data-i18n="syncNow">Sync now</button>
@@ -521,43 +521,26 @@
       </div>
       <div class="panel" id="usersPanel">
         <h3 data-i18n="usersTitle">Users &amp; Roles — Admin only</h3>
+        <p><button class="btn secondary admin-only-add" onclick="newEntry('user')">Add New User</button></p>
         <p class="hint" data-i18n="usersHint">Only the main Admin creates users, gives access and sets or resets passwords. Users cannot change their own password. For a Qari, link the teacher record so he sees only his own class.</p>
         <form onsubmit="saveUserUI(event)">
           <div class="grid">
             <div><label data-i18n="fName">Name *</label><input id="newUserName" required></div>
             <div><label data-i18n="username">Username *</label><input id="newUserUsername" required></div>
             <div><label data-i18n="password">Password *</label><input id="newUserPassword" type="password" required></div>
-            <div><label data-i18n="fRole">Role</label><select id="newUserRole" onchange="toggleUserTeacher()"><option value="Editor">Editor</option><option value="Qari">Qari</option><option value="Admin">Admin</option></select></div>
+            <div><label data-i18n="fRole">Role</label><select id="newUserRole" onchange="toggleUserTeacher()"><option value="Admin">Admin</option><option value="Qari">Qari</option></select></div>
             <div id="userTeacherWrap" style="display:none"><label data-i18n="fLinkedTeacher">Linked teacher (Qari record)</label><select id="newUserTeacher"><option value="">—</option></select></div>
             <div><label data-i18n="fPhone">Phone</label><input id="newUserPhone" dir="ltr"></div>
             <div><label data-i18n="fEmail">Email</label><input id="newUserEmail" type="email" dir="ltr" placeholder="name@example.com"></div>
           </div><br>
           <input type="hidden" id="newUserId">
-          <div class="full" style="margin-top:8px">
-            <label data-i18n="permissionsTitle">Access permissions (Editor only)</label>
-            <p class="hint" data-i18n="permHint">Tick what this Editor may EDIT. Anything unticked is view-only.</p>
-            <label style="display:block;font-weight:400"><input type="checkbox" id="permStudentsEdit"> <span data-i18n="permStudents">Students — can edit</span></label>
-            <label style="display:block;font-weight:400"><input type="checkbox" id="permFeesEdit"> <span data-i18n="permFees">Fees — can edit</span></label>
-            <label style="display:block;font-weight:400"><input type="checkbox" id="permAccountsEdit"> <span data-i18n="permAccounts">Accounts — can edit</span></label>
-            <label style="display:block;font-weight:400"><input type="checkbox" id="permAttendanceEdit"> <span data-i18n="permAttendance">Attendance — can edit</span></label>
-          </div>
           <button class="btn" type="submit" data-i18n="createUser">Create user</button>
           <button class="btn secondary" type="button" onclick="genPasswordUI()" data-i18n="genPassword">Generate password</button>
         </form>
         <br>
-        <h3 data-i18n="adminEmailTitle">Set a user's email (Admin only)</h3>
-        <form onsubmit="saveAdminEmailUI(event)">
-          <div class="grid">
-            <div><label data-i18n="fUser">User</label><select id="adminEmailUser"></select></div>
-            <div><label data-i18n="fEmail">Email *</label><input id="adminEmailInput" type="email" dir="ltr" required placeholder="name@example.com"></div>
-          </div><br>
-          <button class="btn secondary" type="submit" data-i18n="saveEmail">Save email</button>
-          <span class="size-note" id="adminEmailNote"></span>
-        </form>
-        <br>
         <div class="table-wrap"><table>
-          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="username">Username</th><th data-i18n="fRole">Role</th><th data-i18n="fLinkedTeacher">Linked teacher</th><th data-i18n="thPhone">Phone</th><th data-i18n="fEmail">Email</th><th data-i18n="thVerified">Verified</th><th data-i18n="thStatus">Status</th><th data-i18n="thPermissions">Permissions</th><th data-i18n="thAction">Action</th></tr></thead>
-          <tbody id="usersTable"></tbody>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="username">Username</th><th data-i18n="fRole">Role</th><th data-i18n="fLinkedTeacher">Linked teacher</th><th data-i18n="thPhone">Phone</th><th data-i18n="fEmail">Email</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
+                    <tbody id="usersTable"></tbody>
         </table></div>
       </div>
       <div class="panel">

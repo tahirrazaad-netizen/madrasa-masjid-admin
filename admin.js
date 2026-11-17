@@ -1,21 +1,21 @@
 /**
- * admin.js — Madrasa + Masjid Admin Panel (frontend logic) — v4
+ * admin.js — Madrasa + Masjid Admin Panel (frontend logic) — v6
  * ============================================================
  * Offline-first: every save goes to order.js (localStorage) FIRST,
  * then is queued for the Google Sheet backend (Code.gs Web App).
- * v4: writes go through GET with a JSON `payload` param (order.js
- * apiPost) — a plain fetch POST loses its body on the Apps Script
- * redirect, so writes would silently never reach the Sheet.
- * Every fetch() here matches an action in Code.gs handleAction():
- *   getDashboard, getStudents, saveStudent, getTeachers, saveTeacher,
- *   saveAttendance, getAttendance, recordFee, getFees,
- *   recordTransaction, getAccounts, getReceipts, getClasses, saveClass
- * Language: English by default, Urdu toggle at the top (no mixed UI).
+ * Writes go through GET with a JSON `payload` param (order.js apiPost)
+ * — a plain fetch POST loses its body on the Apps Script redirect, so
+ * writes would silently never reach the Sheet.
+ * Language: ENGLISH ONLY. No Urdu toggle, no mixed labels.
+ * Roles: ONLY Admin (Head Qari) and Qari (Teacher). No Editor role,
+ * no permission matrix. Qari = Teacher. There is NO vehicle feature.
  * Passwords: ONLY the main Admin creates / resets passwords (Settings >
- * Users). There is no self-service forgot/change password anywhere.
+ * Users). No demo logins, no password ever shown on screen.
  * Qari access: a Qari user is linked to one Teacher record (TeacherID);
- * he sees only the students assigned to him (Student.InCharge) or, when
- * no InCharge is set, the students of his Class.
+ * he sees only his own students (Student.InCharge = his TeacherID).
+ * If his account is not linked to a teacher record, he sees NO students.
+ * Sync honesty: the pill says "Synced" ONLY after a read-back from the
+ * Sheet confirms it (lastVerifiedSync).
  */
 (function () {
   'use strict';
@@ -33,7 +33,7 @@
   // Auth is Sheet-based (demo-level) — see SETUP-GUIDE.md.
 
   var students = [], teachers = [], fees = [], accounts = [], receipts = [], attendance = [];
-  var users = [], ledger = [], items = [], sabaq = [], classes = [], vehicles = [];
+  var users = [], ledger = [], items = [], sabaq = [], classes = [], messages = [], salary = [];
   var settings = {};
   var currentUser = null; // { UserID, Name, Role, Username, Phone, TeacherID }
   var attMarks = {};
@@ -41,17 +41,13 @@
   var pendingPhoto = null;
   var profileStudentId = null, profileTeacherId = null;
   var calYear = null, calMonth = null;
-  var charts = {}; // Chart.js instances, by canvas id
 
   /* ---------- language: English default, Urdu toggle (no mixed UI) ---------- */
-  var LANG = 'en';
-  try { LANG = localStorage.getItem('mm_lang') || 'en'; } catch (e) {}
+  var LANG = 'en'; // English only — no language toggle (v6).
   var I18N = {
     en: {
       loginHint: 'Log in to continue', username: 'Username', password: 'Password', login: 'Log in',
       forgotNote: 'Forgot your password? Only the main Admin can reset it. Please contact the Admin.',
-      demoLoginTitle: 'DEMO LOGIN — for testing only (change in Settings > Users):',
-      demoLoginNote: 'This is a demo login, not a secure production login — see SETUP-GUIDE.md.',
       logout: 'Log out', new: 'New', newStudent: 'New Student', newTeacher: 'New Teacher', newFee: 'New Fee Payment',
       newTransaction: 'New Transaction', newItem: 'New Budget Item', newClass: 'New Class', newUser: 'New User',
       searchPh: 'Search students — name, father, class…', allClasses: 'All classes', allStatuses: 'All statuses',
@@ -108,24 +104,16 @@
       classesTitle: 'Classes — define class names & levels',
       classesHint: 'Define each class once, e.g. Qaida, Nazra, Hifz, Alim-e-Deen Level 1–8, Fazil. Each level is a separate class, so Alim-e-Deen Level 1 and Level 2 never mix.',
       fClassName: 'Class name *', fLevel: 'Level', fDesc: 'Description', saveClass: 'Save class',
-      navVehicles: 'Vehicles', newVehicle: 'New Vehicle',
       attFinal: 'Attendance for this date and session is already marked and final. Only the Admin (Head Qari) can correct it.',
       attAdminNoMark: 'Admin (Head Qari) monitors attendance but does not mark it. Attendance is marked by assistant Qaris.',
       attTodayTitle: "Today's attendance", attRecordsTitle: 'Attendance records — correct (Admin only)',
-      attRecordsHint: 'Pick a date and session. To correct a mistake, change the status in the list — only the Admin can do this.',
-      vehiclesTitle: 'Vehicles', vehiclesHint: 'Vehicle expenses are tracked separately from other expenses — pick a vehicle when adding a transaction.',
-      vehicleNo: 'Vehicle number *', vehicleType: 'Type', vehicleDriver: 'Driver', vehicleRoute: 'Route',
-      vehicleExpenses: 'Vehicle expenses', noVehicles: 'No vehicles yet.', vehicleNoRequired: 'Vehicle number is required.',
-      fVehicle: 'Vehicle — for vehicle expenses', printSlip: 'Print slip', printProfile: 'Print profile',
+      attRecordsHint: 'Pick a date and session. To correct a mistake, change the status in the list — only the Admin can do this.', printSlip: 'Print slip', printProfile: 'Print profile',
       downloadProfile: 'Save (download)', shareProfile: 'Share', copiedLabel: 'Copied to clipboard.',
       backupTitle: 'Backup — download / restore', backupHint: 'Download the whole dataset (all tabs) as one file, and upload it back any time to restore it. Admin only.',
       downloadBackup: 'Download backup', uploadBackup: 'Upload backup (restore)',
       backupRestoreConfirm: 'Restore this backup? It will REPLACE all current data in the Sheet.', backupRestored: 'Backup restored.',
       changeMyPassword: 'Change my password', newPassword: 'New password', confirmPassword: 'Confirm new password',
-      passwordChanged: 'Password changed.', passMin6: 'Password must be at least 6 characters.', passNoMatch: 'The two passwords do not match.',
-      permissionsTitle: 'Access permissions (Editor only)', permHint: 'Tick what this Editor may EDIT. Anything unticked is view-only.',
-      permStudents: 'Students — can edit', permFees: 'Fees — can edit', permAccounts: 'Accounts — can edit', permAttendance: 'Attendance — can edit',
-      fullAccess: 'Full Editor access', thPermissions: 'Permissions', thVehicle: 'Vehicle', thPrint: 'Print',
+      passwordChanged: 'Password changed.', passMin6: 'Password must be at least 6 characters.', passNoMatch: 'The two passwords do not match.', thPrint: 'Print',
       connTitle: 'Connection', fApiUrl: 'Apps Script Web App URL (paste after deploying Code.gs)',
       fImgbb: 'ImgBB API Key (for hosting photos — free key at https://api.imgbb.com/)',
       saveSettings: 'Save settings', syncNow: 'Sync now',
@@ -135,11 +123,11 @@
       genPassword: 'Generate password', adminEmailTitle: "Set a user's email (Admin only)", fUser: 'User', saveEmail: 'Save email',
       localTitle: 'Local data (order.js)', localHint: 'All data is saved on this device first, then synced to the Sheet. The same file will work in the Electron / mobile app later.',
       clearLocal: 'Clear local data', profile: 'Profile', edit: 'Edit', statusBtn: 'Status', resetPass: 'Reset password',
-      disable: 'Disable', enable: 'Enable', chartsUnavailable: 'Graphs need an internet connection (Chart.js could not load). The numbers below are still live.',
+      disable: 'Disable', enable: 'Enable',
       yes: 'Yes', no: 'No', notMarked: 'Not marked', didNotRecite: 'Did not recite',
       notAllowed: 'Not allowed for this role:', wrongLogin: 'Wrong username or password.',
       adminPhoneLabel: 'Admin phone: ', editStudent: 'Edit student', nameRequired: 'Name is required.',
-      saved: 'Saved.', savedLocal: 'Saved locally and queued for sync.',
+      saved: 'Saved on this device — syncing to the Sheet…', savedLocal: 'Saved on this device — syncing to the Sheet…',
       studentAmountRequired: 'Student and amount are required.', ledgerSaved: 'Saved to ledger — receipt no.: ',
       photoBefore: 'Before: ', photoAfter: ' → After: ', showListFirst: 'Show the list first.',
       feeRequired: 'Student, month and amount are required.', amountRequired: 'Amount is required.',
@@ -157,152 +145,14 @@
       totalJoinedLabel: 'Total joined', currentLabel: 'Current', teachersEverLabel: 'Teachers ever',
       teachersLeftLabel: 'Teachers left', noRecordLabel: 'No record'
     },
-    ur: {
-      loginHint: 'لاگ ان کریں', username: 'یوزر نیم', password: 'پاس ورڈ', login: 'لاگ ان',
-      forgotNote: 'پاس ورڈ بھول گئے؟ صرف مین ایڈمن پاس ورڈ بدل سکتا ہے۔ ایڈمن سے رابطہ کریں۔',
-      demoLoginTitle: 'ڈیمو لاگ ان — صرف جانچ کے لیے (Settings > Users میں بدلیں):',
-      demoLoginNote: 'یہ ڈیمو لاگ ان ہے، محفوظ پروڈکشن لاگ ان نہیں — تفصیل SETUP-GUIDE میں دیکھیں۔',
-      logout: 'لاگ آؤٹ', new: 'نیا', newStudent: 'نیا طالب علم', newTeacher: 'نیا استاد', newFee: 'نئی فیس',
-      newTransaction: 'نیا لین دین', newItem: 'نیا بجٹ آئٹم', newClass: 'نئی جماعت', newUser: 'نیا یوزر',
-      searchPh: 'طلبہ تلاش کریں — نام، والد، جماعت…', allClasses: 'تمام جماعتیں', allStatuses: 'تمام اسٹیٹس',
-      navDashboard: 'ڈیش بورڈ', navMyClass: 'میری جماعت', navStudents: 'طلبہ', navTeachers: 'اساتذہ',
-      navAttendance: 'حاضری', navSabaq: 'سبق اور روزانہ رپورٹ', navFees: 'فیس', navAccounts: 'حسابات',
-      navReceipts: 'رسیدیں', navHistory: 'تاریخ', navReports: 'رپورٹس اور گراف', navSettings: 'سیٹنگز',
-      dashHint: 'مدرسہ اور مسجد کے فنڈ الگ الگ ہیں — نیچے دونوں کا بیلنس الگ دکھایا گیا ہے۔',
-      dashHistoryTitle: 'تاریخ — خلاصہ', dashAdminTitle: 'ایڈمن رابطہ', dashAttTitle: 'آج کی حاضری — خلاصہ',
-      dashNotifTitle: 'فیس نوٹیفکیشن لاگ (صرف لاگ)', dashNotifHint: 'اصل push notification بعد میں بنے گی۔ یہاں صرف لاگ لکھا جاتا ہے — اسے "بھیج دیا گیا" نہ سمجھیں۔',
-      myClassTitle: 'میری جماعت', myClassHint: 'صرف آپ کی جماعت — آپ کے طلبہ، آج کی حاضری، سبق اور آپ کی جماعت کا گراف۔',
-      myClassAttChart: 'میری جماعت — حاضری، پچھلے 14 دن', myClassToday: 'آج کی حاضری — جلدی لگائیں',
-      myClassStudents: 'میرے طلبہ', session: 'سیشن', session1: 'پہلا سیشن', session2: 'دوسرا سیشن', sessionNight: 'رات کا سیشن',
-      saveAttendance: 'حاضری محفوظ کریں', studentsHint: 'طالب علم کبھی ڈیلیٹ نہیں ہوتا — صرف اسٹیٹس بدلیں: Current / Hifz Completed / Left۔ نام پر کلک کر کے پروفائل دیکھیں۔',
-      addStudent: 'نیا طالب علم شامل کریں', fName: 'نام *', fFather: 'والد کا نام', fAge: 'عمر', fClass: 'جماعت', fInCharge: 'انچارج (قاری صاحب)',
-      fAdmission: 'داخلہ تاریخ', fMonthlyFee: 'ماہانہ فیس (روپے)', fFatherPhone: 'والد کا فون', fGuardianPhone: 'سرپرست فون',
-      fAddress: 'پتہ / مقام — گاؤں / شہر', fAdmFee: 'داخلہ فیس (روپے)', fAdmPaid: 'داخلہ فیس وصول؟',
-      fAdmDate: 'داخلہ فیس تاریخ', fStatus: 'اسٹیٹس', fS1: 'پہلا سیشن', fS2: 'دوسرا سیشن', fNight: 'رات کا سیشن',
-      fPhoto: 'طالب علم کی تصویر (زیادہ سے زیادہ 800px، JPEG 0.75)', save: 'محفوظ کریں', clear: 'نیا فارم',
-      stSearchPh: 'تلاش — نام / والد / جماعت / مقام',
-      thName: 'نام', thFather: 'والد', thClass: 'جماعت', thSessions: 'سیشن', thFee: 'فیس', thAdmFee: 'داخلہ فیس',
-      thStatus: 'اسٹیٹس', thAction: 'عمل', thPhone: 'فون', thJoin: 'تقرری', thSalary: 'تنخواہ', thDate: 'تاریخ',
-      thMonth: 'مہینہ', thAmount: 'رقم', thReceipt: 'رسید نمبر', thItem: 'آئٹم', thAllocated: 'مختص', thSpent: 'خرچ',
-      thRemaining: 'باقی', thPurpose: 'مقصد', thRecited: 'سنایا؟', thWhat: 'کیا سنایا', thVerified: 'تصدیق',
-      thFatherPhone: 'والد کا فون', thGuardianPhone: 'سرپرست فون', thLocation: 'مقام', thAdmission: 'داخلہ',
-      studentProfile: 'طالب علم کی پروفائل', backToStudents: '← واپس طلبہ کی فہرست پر', attCalendarTitle: 'حاضری کی تاریخ — کیلنڈر',
-      present: 'حاضر', absent: 'غیر حاضر', leave: 'چھٹی', noRecord: 'کوئی ریکارڈ نہیں', sabaqHistoryTitle: 'سبق کی تاریخ — کیا طالب علم نے سنایا؟',
-      ledgerTitle: 'گھر سے وصولی درج کریں', fStudent: 'طالب علم', fType: 'قسم', fAmount: 'رقم (روپے) *',
-      fMethod: 'طریقہ', fDate: 'تاریخ', fNote: 'نوٹ', saveLedger: 'کھاتے میں درج کریں + رسید',
-      teachersHint: 'استاد کبھی ڈیلیٹ نہیں ہوتا — صرف اسٹیٹس بدلیں: Active / Left۔ نام پر کلک کر کے پروفائل دیکھیں۔',
-      addTeacher: 'استاد شامل کریں', fPhone: 'فون', fJoin: 'تاریخِ تقرری', fSalary: 'ماہانہ تنخواہ (روپے)',
-      teacherProfile: 'قاری صاحب کی پروفائل', backToTeachers: '← واپس اساتذہ کی فہرست پر',
-      attHow: 'طریقہ: پہلے تاریخ + سیشن چنیں۔ اس سیشن کے تمام طلبہ پہلے سے حاضر مانے جائیں گے — قاری صاحب کو صرف غیر حاضر یا چھٹی والوں پر ٹیپ کرنا ہے۔ رات کے سیشن میں صرف وہ طلبہ آئیں گے جن کا Night Session = Yes ہے۔',
-      attBy: 'حاضری لینے والا', showList: 'فہرست دکھائیں', sabaqHint: 'ہر دن درج کریں کہ طالب علم نے سبق سنایا یا نہیں۔ نیچے روزانہ رپورٹ میں دیکھیں کہ کس نے سنایا اور کس نے نہیں۔',
-      sabaqTodayTitle: 'آج کی سبق رپورٹ', sabaqAddTitle: 'سبق درج کریں', sabaqWhat: 'آج کیا سنایا',
-      sabaqAmount: 'مقدار', sabaqNote: 'استاد کی رائے', saveSabaq: 'سبق محفوظ کریں',
-      feesHint: 'فیس ادا کرتے ہی رسید نمبر خود بنے گا (مثال: MSD-2026-0001) اور رسید پرنٹ ہو سکے گی۔',
-      feeAddTitle: 'فیس وصول کریں', fMonth: 'مہینہ', saveFee: 'فیس + رسید محفوظ کریں', receiptTitle: 'رسید — پرنٹ کریں',
-      print: 'پرنٹ', feesListTitle: 'فیس کی فہرست',
-      accountsTitle: 'حسابات — مدرسہ اور مسجد الگ الگ',
-      accountsHint: 'ہر لین دین کی رسید بنتی ہے۔ مدرسہ فنڈ اور مسجد فنڈ کبھی آپس میں نہ ملائیں۔ آمدنی = آنے والا پیسہ (فیس، چندہ، گھر سے وصولی)۔ خرچ = جانے والا پیسہ (تنخواہ، بجلی، کتابیں، کھانا، تعمیر)۔ اساتذہ کو ایڈوانس بھی یہیں درج ہوتا ہے۔',
-      balMadrasa: 'مدرسہ بیلنس', balMasjid: 'مسجد بیلنس', itemsTitle: 'آئٹم / بجٹ — فنڈ کس آئٹم پر لگا؟',
-      fItem: 'آئٹم *', fFund: 'فنڈ', fAllocated: 'مختص رقم (روپے)', fSpent: 'خرچ شدہ (روپے)', saveItem: 'آئٹم محفوظ کریں',
-      txAddTitle: 'لین دین درج کریں — آمدنی / خرچ / ایڈوانس', fCategory: 'زمرہ', fAllocatedQ: 'فنڈ اس آئٹم پر مختص؟',
-      fTeacher: 'استاد — تنخواہ / ایڈوانس کے لیے', fDesc: 'تفصیل', saveTx: 'لین دین محفوظ کریں', bothFunds: 'دونوں فنڈ',
-      receiptsHint: 'ہر لین دین / فیس کی رسید یہاں محفوظ ہے۔',
-      historyHint: 'کبھی کوئی ریکارڈ ڈیلیٹ نہیں ہوتا — صرف اسٹیٹس بدلتا ہے، اس لیے پوری تاریخ یہاں محفوظ رہتی ہے۔',
-      fYear: 'سال', fLocation: 'مقام', reportsHint: 'Google Sheet کے ڈیٹا سے لائیو گراف۔',
-      chAtt: 'حاضری — پچھلے 14 دن (حاضر / غیر حاضر / چھٹی)', chClass: 'جماعت کے حساب سے طلبہ',
-      chFees: 'مہینے کے حساب سے وصول شدہ فیس', chFunds: 'فنڈ کے حساب سے آمدنی اور خرچ', chAdm: 'مہینے کے حساب سے نئے داخلے',
-      settingsTitle: 'سیٹنگز — صرف ایڈمن', brandTitle: 'مدرسہ / مسجد کی معلومات',
-      brandHint: 'یہی نام، لوگو اور رابطہ ہر جگہ دکھائی دیتا ہے۔ دوسرے مدرسے کو بیچتے وقت صرف یہی بدلنا ہے — کوڈ میں نام لکھا نہیں ہے۔',
-      fMadrasaName: 'مدرسے کا نام *', fMasjidName: 'مسجد کا نام', fAdminName: 'ایڈمن کا نام', fAdminPhone: 'ایڈمن فون *',
-      fAdminWhats: 'ایڈمن واٹس ایپ', fAddress: 'پتہ', fLogo: 'لوگو URL', fTheme: 'رنگ',
-      classesTitle: 'جماعتیں — نام اور درجے طے کریں',
-      classesHint: 'ہر جماعت ایک بار طے کریں، مثلاً قاعدہ، ناظرہ، حفظ، عالم دین لیول 1 تا 8، فاضل۔ ہر لیول الگ جماعت ہے، اس لیے عالم دین لیول 1 اور لیول 2 کبھی نہیں ملیں گے۔',
-      fClassName: 'جماعت کا نام *', fLevel: 'لیول', fDesc: 'تفصیل', saveClass: 'جماعت محفوظ کریں',
-
-      navVehicles: 'گاڑیاں', newVehicle: 'نئی گاڑی',
-      attFinal: 'اس تاریخ اور سیشن کی حاضری لگ چکی ہے اور فائنل ہے۔ صرف ایڈمن (ہیڈ قاری صاحب) درست کر سکتے ہیں۔',
-      attAdminNoMark: 'ایڈمن (ہیڈ قاری صاحب) حاضری دیکھتے ہیں، لگاتے نہیں۔ حاضری اسسٹنٹ قاری صاحب لگاتے ہیں۔',
-      attTodayTitle: 'آج کی حاضری', attRecordsTitle: 'حاضری کا ریکارڈ — درستی (صرف ایڈمن)',
-      attRecordsHint: 'تاریخ اور سیشن چنیں۔ غلطی درست کرنے کے لیے فہرست میں حیثیت بدلیں — یہ صرف ایڈمن کر سکتا ہے۔',
-      vehiclesTitle: 'گاڑیاں', vehiclesHint: 'گاڑیوں کے اخراجات دوسرے اخراجات سے الگ رکھے جاتے ہیں — لین دین شامل کرتے وقت گاڑی چنیں۔',
-      vehicleNo: 'گاڑی نمبر *', vehicleType: 'قسم', vehicleDriver: 'ڈرائیور', vehicleRoute: 'راستہ',
-      vehicleExpenses: 'گاڑی کے اخراجات', noVehicles: 'ابھی کوئی گاڑی نہیں۔', vehicleNoRequired: 'گاڑی نمبر ضروری ہے۔',
-      fVehicle: 'گاڑی — گاڑی کے خرچ کے لیے', printSlip: 'پرچی پرنٹ کریں', printProfile: 'پروفائل پرنٹ کریں',
-      downloadProfile: 'محفوظ کریں (ڈاؤن لوڈ)', shareProfile: 'شیئر کریں', copiedLabel: 'کاپی ہو گیا۔',
-      backupTitle: 'بیک اپ — ڈاؤن لوڈ / واپس لائیں', backupHint: 'پورا ڈیٹا ایک فائل میں ڈاؤن لوڈ کریں، اور جب چاہیں واپس اپ لوڈ کر کے بحال کریں۔ صرف ایڈمن۔',
-      downloadBackup: 'بیک اپ ڈاؤن لوڈ کریں', uploadBackup: 'بیک اپ اپ لوڈ کریں (بحال کریں)',
-      backupRestoreConfirm: 'کیا یہ بیک اپ بحال کریں؟ اس سے Sheet کا سارا موجودہ ڈیٹا بدل جائے گا۔', backupRestored: 'بیک اپ بحال ہو گیا۔',
-      changeMyPassword: 'اپنا پاس ورڈ بدلیں', newPassword: 'نیا پاس ورڈ', confirmPassword: 'نیا پاس ورڈ دوبارہ لکھیں',
-      passwordChanged: 'پاس ورڈ بدل گیا۔', passMin6: 'پاس ورڈ کم از کم 6 حروف کا ہو۔', passNoMatch: 'دونوں پاس ورڈ ایک جیسے نہیں۔',
-      permissionsTitle: 'رسائی کی اجازتیں (صرف ایڈیٹر کے لیے)', permHint: 'جو کچھ ایڈیٹر بدل سکے، اس پر نشان لگائیں۔ جس پر نشان نہیں، وہ صرف دیکھ سکے گا۔',
-      permStudents: 'طلبہ — بدل سکتا ہے', permFees: 'فیس — بدل سکتا ہے', permAccounts: 'اکاؤنٹس — بدل سکتا ہے', permAttendance: 'حاضری — بدل سکتا ہے',
-      fullAccess: 'مکمل ایڈیٹر رسائی', thPermissions: 'اجازتیں', thVehicle: 'گاڑی', thPrint: 'پرنٹ',      connTitle: 'کنکشن', fApiUrl: 'Apps Script Web App URL (Code.gs deploy کرنے کے بعد یہاں پیسٹ کریں)',
-      fImgbb: 'ImgBB API Key (تصاویر ہوسٹ کرنے کے لیے)',
-      saveSettings: 'سیٹنگز محفوظ کریں', syncNow: 'ابھی Sync کریں',
-      usersTitle: 'یوزرز / رول — صرف ایڈمن',
-      usersHint: 'صرف مین ایڈمن یوزر بناتا ہے، رسائی دیتا ہے اور پاس ورڈ لگاتا یا بدلتا ہے۔ یوزر خود اپنا پاس ورڈ نہیں بدل سکتا۔ قاری کے لیے استاد کا ریکارڈ جوڑیں تاکہ وہ صرف اپنی جماعت دیکھے۔',
-      fRole: 'رول', fLinkedTeacher: 'جوڑا ہوا استاد (قاری کا ریکارڈ)', fEmail: 'ای میل', createUser: 'یوزر بنائیں',
-      genPassword: 'پاس ورڈ بنائیں', adminEmailTitle: 'کسی یوزر کی ای میل بدلیں — صرف ایڈمن', fUser: 'یوزر', saveEmail: 'ای میل محفوظ کریں',
-      localTitle: 'مقامی ڈیٹا (order.js)', localHint: 'تمام ڈیٹا پہلے اس ڈیوائس پر محفوظ ہوتا ہے، پھر Sheet سے sync ہوتا ہے۔ یہی فائل بعد میں Electron / موبائل ایپ میں بھی کام کرے گی۔',
-      clearLocal: 'مقامی ڈیٹا صاف کریں', profile: 'پروفائل', edit: 'ترمیم', statusBtn: 'اسٹیٹس', resetPass: 'پاس ورڈ بدلیں',
-      disable: 'Disable', enable: 'Enable', chartsUnavailable: 'گراف کے لیے انٹرنیٹ چاہیے (Chart.js لوڈ نہیں ہوا)۔ نیچے نمبر پھر بھی لائیو ہیں۔',
-      yes: 'جی ہاں', no: 'نہیں', notMarked: 'درج نہیں', didNotRecite: 'نہیں سنایا',
-      notAllowed: 'یہ کام آپ کے رول کے لیے نہیں ہے:', wrongLogin: 'غلط یوزر نیم یا پاس ورڈ۔',
-      adminPhoneLabel: 'ایڈمن فون: ', editStudent: 'طالب علم میں ترمیم', nameRequired: 'نام ضروری ہے۔',
-      saved: 'محفوظ ہو گیا۔', savedLocal: 'مقامی طور پر محفوظ ہو گیا اور sync کے لیے قطار میں ہے۔',
-      studentAmountRequired: 'طالب علم اور رقم ضروری ہیں۔', ledgerSaved: 'کھاتے میں درج ہو گیا — رسید نمبر: ',
-      photoBefore: 'اصل سائز: ', photoAfter: ' → کمپریس شدہ: ', showListFirst: 'پہلے فہرست دکھائیں۔',
-      feeRequired: 'طالب علم، مہینہ اور رقم ضروری ہیں۔', amountRequired: 'رقم ضروری ہے۔',
-      txSaved: 'لین دین محفوظ ہو گیا', itemNameRequired: 'آئٹم کا نام ضروری ہے۔',
-      settingsSaved: 'محفوظ ہو گیا — ایڈمن فون: ', attDefaultNote: 'سب پہلے سے حاضر — صرف Absent / Leave پر ٹیپ کریں',
-      fatherLabel: 'والد', ageLabel: 'عمر', admissionLabel: 'داخلہ', monthlyFeeLabel: 'ماہانہ فیس',
-      addressLabel: 'پتہ / مقام', fatherPhoneLabel: 'والد کا فون', guardianPhoneLabel: 'سرپرست فون',
-      classHistoryLabel: 'جماعت کی تاریخ', admissionFeeLabel: 'داخلہ فیس', receivedLabel: 'وصول',
-      pendingLabel: 'باقی', ledgerHeading: 'گھر سے وصولی — الگ کھاتہ', balanceLabel: 'بیلنس',
-      sabaqRecent: 'سبق — حالیہ', salaryLabel: 'ماہانہ تنخواہ', salaryPaidLabel: 'تنخواہ ادا شدہ',
-      advancesLabel: 'ایڈوانس لیا', studentsInClass: 'اس کی جماعت کے طلبہ', attMarkedLabel: 'حاضری لگائی',
-      salaryHistory: 'تنخواہ / ایڈوانس کی تاریخ', joinLabel: 'تقرری', phoneLabel: 'فون',
-      noSalaryRecord: 'تنخواہ کا کوئی ریکارڈ نہیں۔', purposeLabel: 'مقصد', thankYou: 'شکریہ',
-      changeStatusQ: '', changeStatusQ2: ' — اسٹیٹس ', changeStatusQ3: ' سے ',
-      totalJoinedLabel: 'کل داخل', currentLabel: 'موجودہ', teachersEverLabel: 'اساتذہ کل',
-      teachersLeftLabel: 'اساتذہ چھوڑ گئے', noRecordLabel: 'کوئی ریکارڈ نہیں'
-    }
   };
-  function t(key) { return (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key; }
+  function t(key) { return I18N.en[key] || key; }
   function applyLang() {
-    document.documentElement.lang = LANG;
-    document.documentElement.dir = LANG === 'ur' ? 'rtl' : 'ltr';
+    document.documentElement.lang = 'en';
+    document.documentElement.dir = 'ltr';
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
     document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
-    var lt = $('langToggle'); if (lt) lt.textContent = LANG === 'en' ? 'اردو' : 'English';
-    try { localStorage.setItem('mm_lang', LANG); } catch (e) {}
   }
-  window.toggleLang = function () {
-    LANG = LANG === 'en' ? 'ur' : 'en';
-    applyLang();
-    renderDashboard(); renderStudents(); renderTeachers(); renderFees(); renderAccounts(); renderReceipts(); renderHistory(); renderUsers(); renderItems(); renderClasses(); fillClassSelects();
-    if (profileStudentId) renderStudentProfile();
-    if (profileTeacherId) renderTeacherProfile();
-  };
-  // Extra Urdu labels for dashboard cards / small dynamic strings (key = English text).
-  I18N.ur['Current students'] = 'موجودہ طلبہ'; I18N.ur['Total joined ever'] = 'کبھی داخل ہوئے';
-  I18N.ur['Hifz completed'] = 'حفظ مکمل'; I18N.ur['Left'] = 'چھوڑ گئے';
-  I18N.ur['New admissions this month'] = 'اس مہینے نئے داخلے'; I18N.ur['Admission fee pending'] = 'داخلہ فیس باقی';
-  I18N.ur['Teachers active'] = 'اساتذہ (فعال)'; I18N.ur['Madrasa balance'] = 'مدرسہ بیلنس';
-  I18N.ur['Masjid balance'] = 'مسجد بیلنس'; I18N.ur['Fees collected this month'] = 'اس مہینے فیس وصول';
-  I18N.ur['Fees pending'] = 'فیس باقی'; I18N.ur['students'] = 'طلبہ';
-  I18N.ur['No attendance recorded today yet.'] = 'آج کی حاضری ابھی درج نہیں ہوئی۔';
-  I18N.ur['Set the admin contact number in Settings.'] = 'ایڈمن رابطہ نمبر Settings میں درج کریں۔';
-  I18N.ur['No notifications yet.'] = 'ابھی کوئی نوٹیفکیشن نہیں۔';
-  I18N.ur['No students found — add one above.'] = 'کوئی طالب علم نہیں ملا۔';
-  I18N.ur['Admission received'] = 'داخلہ فیس وصول'; I18N.ur['Admission pending'] = 'داخلہ فیس باقی';
-  I18N.ur['No teachers yet.'] = 'کوئی استاد نہیں۔'; I18N.ur['No students in this session.'] = 'اس سیشن میں کوئی طالب علم نہیں۔';
-  I18N.ur['No fees recorded yet.'] = 'کوئی فیس درج نہیں۔'; I18N.ur['No transactions yet.'] = 'کوئی لین دین نہیں۔';
-  I18N.ur['No receipts yet.'] = 'کوئی رسید نہیں۔'; I18N.ur['No history records for this filter.'] = 'اس فلٹر میں کوئی ریکارڈ نہیں۔';
-  I18N.ur['No users yet.'] = 'کوئی یوزر نہیں۔'; I18N.ur['No budget items yet.'] = 'کوئی آئٹم نہیں۔';
-  I18N.ur['No ledger entries yet.'] = 'کھاتے میں کوئی لین دین نہیں۔'; I18N.ur['Total joined'] = 'کل داخل';
-  I18N.ur['Current'] = 'موجودہ'; I18N.ur['Teachers ever'] = 'اساتذہ کل'; I18N.ur['Teachers left'] = 'اساتذہ چھوڑ گئے';
-
   function $(id) { return document.getElementById(id); }
   function today() { return new Date().toISOString().slice(0, 10); }
   function thisMonth() { return today().slice(0, 7); }
@@ -311,25 +161,13 @@
   function studentName(id) { var s = students.find(function (x) { return String(x.StudentID) === String(id); }); return s ? s.Name : id; }
   function teacherName(id) { var t = teachers.find(function (x) { return String(x.TeacherID) === String(id); }); return t ? t.Name : id; }
   function role() { return currentUser ? currentUser.Role : 'Admin'; }
-  // v5 access rules: the Head Qari (Admin) monitors attendance but NEVER
-  // marks it — only assistant Qaris mark attendance. Editor has no
-  // attendance, settings or user rights, and per-user view/edit permissions
-  // (set by the Admin in Settings > Users) decide what an Editor may change.
+  // v6 access rules — ONLY two roles. The Head Qari (Admin) monitors
+  // attendance but NEVER marks it — only assistant Qaris mark attendance.
+  // A Qari may only mark attendance, record Sabaq and send a message.
   function can(action) {
     if (role() === 'Admin') return action !== 'saveAttendance';
-    if (role() === 'Editor') {
-      if (['saveSettings', 'saveUser', 'saveClass', 'saveAttendance', 'correctAttendance', 'saveVehicle', 'restoreBackup', 'exportBackup'].indexOf(action) !== -1) return false;
-      return permAllows(action);
-    }
-    if (role() === 'Qari') return ['saveAttendance', 'saveSabaq'].indexOf(action) !== -1 || action.indexOf('get') === 0;
+    if (role() === 'Qari') return ['saveAttendance', 'saveSabaq', 'sendMessage'].indexOf(action) !== -1 || action.indexOf('get') === 0;
     return false;
-  }
-  function permAllows(action) {
-    var perms = currentUser && currentUser.Permissions ? String(currentUser.Permissions).split(',') : [];
-    if (!perms.length) return true; // no permissions set = full Editor access
-    var area = { saveStudent: 'students', saveTeacher: 'teachers', recordFee: 'fees', recordLedger: 'fees', recordTransaction: 'accounts', saveItem: 'accounts', saveSabaq: 'attendance' }[action];
-    if (!area) return true;
-    return perms.indexOf(area + ':edit') !== -1;
   }
   function requireRole(action) {
     if (!can(action)) { alert(t('notAllowed') + ' ' + role() + '.'); return false; }
@@ -357,7 +195,7 @@
     var u = $('loginUser').value.trim(), p = $('loginPass').value;
     var found = users.filter(function (x) { return String(x.Username) === u && String(x.Password) === p && x.Status === 'Active'; })[0];
     if (found) { loginSuccess(found); return; }
-    // Try the server when an API URL is set (local demo users are the fallback).
+    // Try the server when an API URL is set (local users are the fallback).
     if (MMLocal.getApiUrl()) {
       MMLocal.apiPost('login', { username: u, password: p }).then(function (d) {
         if (d && d.ok && d.user) loginSuccess(d.user);
@@ -372,7 +210,7 @@
     try { sessionStorage.setItem('mm_v2_session', JSON.stringify(currentUser)); } catch (e) {}
     $('loginError').textContent = '';
     showApp();
-    renderDashboard(); renderStudents(); renderTeachers(); renderFees(); renderAccounts(); renderReceipts(); renderHistory(); renderUsers(); renderItems(); renderClasses(); fillClassSelects();
+    renderDashboard(); renderStudents(); renderTeachers(); renderFees(); renderAccounts(); renderReceipts(); renderHistory(); renderUsers(); renderItems(); renderClasses(); renderMessages(); fillClassSelects();
     // Qari lands on his own streamlined screen, not the full dashboard.
     if (currentUser.Role === 'Qari') showSection('my-class');
   }
@@ -389,36 +227,9 @@
     } catch (e) {}
   }
 
-  // Admin sets any user's email from Settings > Users.
-  window.saveAdminEmailUI = function (e) {
-    e.preventDefault();
-    if (!requireRole('saveUser')) return;
-    var userId = $('adminEmailUser').value;
-    var email = $('adminEmailInput').value.trim();
-    var done = function (d) {
-      var note = $('adminEmailNote');
-      if (!d || !d.ok) { if (note) note.textContent = (d && d.error) || 'Could not save email.'; return; }
-      var u = users.filter(function (x) { return String(x.UserID) === String(userId); })[0];
-      if (u) { u.Email = email; u.EmailVerified = d.emailVerified || 'No'; if (d.emailVerified === 'No') u.VerifiedDate = ''; MMLocal.saveLocal('users', users); }
-      renderUsers();
-      if (note) note.textContent = '✅ ' + (d.message || 'Email saved.');
-    };
-    if (MMLocal.getApiUrl()) {
-      MMLocal.apiPost('saveUserEmail', { userId: userId, email: email, requesterUserId: currentUser.UserID, role: role() }).then(done).catch(function (err) { var note = $('adminEmailNote'); if (note) note.textContent = err.message; });
-    } else {
-      var r = MMLocal.saveUserEmailLocal(userId, email);
-      if (r.ok) MMLocal.queueChange('saveUserEmail', { userId: userId, email: email, requesterUserId: currentUser.UserID, role: role() });
-      done(r.ok ? { ok: true, emailVerified: r.emailVerified, message: 'Email saved locally for this user.' } : r);
-    }
-  };
-  function fillAdminEmailUsers() {
-    var sel = $('adminEmailUser'); if (!sel) return;
-    sel.innerHTML = users.map(function (u) { return '<option value="' + esc(u.UserID) + '">' + esc(u.Name) + ' (' + esc(u.Username) + ' — ' + esc(u.Role) + ')</option>'; }).join('');
-  }
-
   /* ---------- role enforcement in the UI (server also enforces) ---------- */
-  // Qari: only My Class, Students (own only), Attendance, Sabaq.
-  // Editor: everything except Settings. Admin: everything.
+  // Qari: only My Class, Students (own only), Attendance, Sabaq, Messages.
+  // Admin: everything.
   function myTeacher() {
     if (!currentUser) return null;
     if (currentUser.TeacherID) {
@@ -429,7 +240,7 @@
   }
   function applyRole() {
     var r = role();
-    var hideFor = { Qari: ['dashboard', 'teachers', 'fees', 'accounts', 'receipts', 'settings', 'history', 'reports', 'vehicles'], Editor: ['settings'] };
+    var hideFor = { Qari: ['dashboard', 'teachers', 'fees', 'accounts', 'receipts', 'settings', 'history', 'reports'] };
     var hide = hideFor[r] || [];
     document.querySelectorAll('#sidebar button').forEach(function (b) {
       var show = hide.indexOf(b.dataset.section) === -1;
@@ -449,12 +260,14 @@
     var isQari = r === 'Qari';
     ['studentFormPanel', 'teacherFormPanel'].forEach(function (id) { var el = $(id); if (el) el.style.display = isQari ? 'none' : ''; });
     var nmBtn = $('newMenuBtn'); if (nmBtn) nmBtn.style.display = isQari ? 'none' : '';
+    var bkBtn = $('headerBackupBtn'); if (bkBtn) bkBtn.style.display = isQari ? 'none' : '';
+    document.querySelectorAll('.admin-only-add').forEach(function (b) { b.style.display = isQari ? 'none' : ''; });
   }
 
   /* ---------- navigation ---------- */
   window.showSection = function (name) {
     if (name === 'settings' && role() !== 'Admin') { alert(t('settingsTitle')); return; }
-    if ((name === 'accounts' || name === 'fees' || name === 'receipts' || name === 'history' || name === 'reports' || name === 'dashboard' || name === 'teachers' || name === 'vehicles') && role() === 'Qari') { showSection('my-class'); return; }
+    if ((name === 'accounts' || name === 'fees' || name === 'receipts' || name === 'history' || name === 'reports' || name === 'dashboard' || name === 'teachers') && role() === 'Qari') { showSection('my-class'); return; }
     document.querySelectorAll('.section').forEach(function (el) { el.classList.remove('active'); });
     var sec = $('section-' + name);
     if (sec) sec.classList.add('active');
@@ -470,41 +283,51 @@
     if (name === 'sabaq') { renderSabaqReport(); fillSabaqStudents(); }
     if (name === 'settings') { renderUsers(); renderClasses(); }
     if (name === 'attendance') { renderAttendanceList(); renderAttRecords(); }
-    if (name === 'vehicles') { renderVehicles(); fillVehicleSelect(); }
+    if (name === 'messages') { renderMessages(); }
   };
 
-  /* ---------- sync status pill ---------- */
+  /* ---------- sync status pill ----------
+     "Synced" is shown ONLY after a read-back from the Sheet confirms the
+     data is there (lastVerifiedSync). Until then the pill says what is
+     actually true: saved on this device, or pending. */
+  var lastVerifiedSync = null;
   function refreshSyncPill() {
     var st = MMLocal.getSyncStatus();
     var pill = $('syncPill');
     if (!pill) return;
     if (!st.apiConfigured) {
-      pill.textContent = st.pending ? 'Saved locally · Pending (' + st.pending + ') — no API URL yet' : 'Saved locally (no API URL yet)';
+      pill.textContent = st.pending ? 'Saved on this device · Pending (' + st.pending + ') — no Sheet connected' : 'Saved on this device — no Sheet connected';
       pill.classList.add('pending');
     } else if (st.pending) {
       pill.textContent = 'Pending (' + st.pending + ') — tap to sync';
       pill.classList.add('pending');
-    } else {
-      pill.textContent = 'Synced' + (st.lastSync ? ' · ' + new Date(st.lastSync).toLocaleString() : '');
+    } else if (lastVerifiedSync) {
+      pill.textContent = 'Synced ✓ verified ' + new Date(lastVerifiedSync).toLocaleTimeString();
       pill.classList.remove('pending');
+    } else {
+      pill.textContent = 'Saved on this device — syncing…';
+      pill.classList.add('pending');
     }
     var info = $('localInfo');
-    if (info) info.textContent = 'Students: ' + students.length + ' · Teachers: ' + teachers.length + ' · Fees: ' + fees.length + ' · Accounts: ' + accounts.length + ' · Receipts: ' + receipts.length + ' · Ledger: ' + ledger.length + ' · Users: ' + users.length + '\nPending in outbox: ' + st.pending + ' · Last sync: ' + (st.lastSync || 'never') + ' · Online: ' + (st.online ? 'yes' : 'no');
+    if (info) info.textContent = 'Students: ' + students.length + ' · Teachers: ' + teachers.length + ' · Fees: ' + fees.length + ' · Accounts: ' + accounts.length + ' · Receipts: ' + receipts.length + ' · Ledger: ' + ledger.length + ' · Users: ' + users.length + '\nPending in outbox: ' + st.pending + ' · Last verified sync: ' + (lastVerifiedSync ? new Date(lastVerifiedSync).toLocaleString() : 'not yet') + ' · Online: ' + (st.online ? 'yes' : 'no');
   }
 
   window.syncNowUI = function () {
     var pill = $('syncPill');
     if (pill) pill.textContent = 'Syncing…';
     MMLocal.syncNow().then(function (r) {
-      if (r.ok) { refreshFromServer(); }
-      refreshSyncPill();
-      if (!r.ok && r.error) alert('Sync: ' + r.error + ' — data is still saved locally.');
-    }).catch(function (e) { refreshSyncPill(); alert('Sync failed: ' + e.message + ' — data is still saved locally.'); });
+      if (r.ok) {
+        refreshFromServer().then(function () { refreshSyncPill(); });
+      } else {
+        refreshSyncPill();
+        if (r.error) alert('Sync: ' + r.error + ' — data is still saved on this device.');
+      }
+    }).catch(function (e) { refreshSyncPill(); alert('Sync failed: ' + e.message + ' — data is still saved on this device.'); });
   };
 
   /* ---------- settings / branding (white-label: nothing hard-coded) ---------- */
   function defaultSettings() {
-    return { MadrasaName: 'مدرسہ (Madrasa Name — change in Settings)', MasjidName: 'مسجد (Masjid Name — change in Settings)', AdminName: 'ایڈمن (Admin Name)', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#4f46e5' };
+    return { MadrasaName: 'Madrasa (change name in Settings)', MasjidName: 'Masjid (change name in Settings)', AdminName: 'Admin', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#4f46e5' };
   }
   function loadSettingsLocal() {
     var s = MMLocal.getLocal('settings');
@@ -551,19 +374,15 @@
     // v3: old local stores (seeded by v1/v2) lack the new email fields — normalise.
     users.forEach(function (u) {
       if (u.Email === undefined) u.Email = '';
-      if (!u.EmailVerified) u.EmailVerified = 'No';
-      if (u.VerifiedDate === undefined) u.VerifiedDate = '';
-      if (u.ResetCode === undefined) u.ResetCode = '';
-      if (u.ResetExpiry === undefined) u.ResetExpiry = '';
       if (u.TeacherID === undefined) u.TeacherID = '';
-      if (u.Permissions === undefined) u.Permissions = '';
     });
     ledger = MMLocal.getLocal('ledger');
     items = MMLocal.getLocal('items');
     sabaq = MMLocal.getLocal('sabaq');
     classes = MMLocal.getLocal('classes') || [];
     if (!classes.length) classes = defaultClassesLocal();
-    vehicles = MMLocal.getLocal('vehicles') || [];
+    messages = MMLocal.getLocal('messages') || [];
+    salary = MMLocal.getLocal('salary') || [];
     loadSettingsLocal();
   }
   function defaultClassesLocal() {
@@ -574,19 +393,9 @@
     return defs.map(function (d, i) { return { ClassID: 'CLS-DEF-' + (i + 1), ClassName: d[0], Level: d[1], Description: '', Status: 'Active' }; });
   }
   function classLabel(c) { return c.ClassName + (c.Level && c.Level !== '—' ? ' — ' + c.Level : ''); }
-  // Canonical class names are English (stored in the Sheet). Urdu mode shows
-  // the Urdu name; old Urdu values saved earlier are normalised on load.
-  var CLASS_UR = { Qaida: 'قاعدہ', Nazra: 'ناظرہ', Hifz: 'حفظ', Tajweed: 'تجوید', 'Alim-e-Deen': 'عالم دین', Fazil: 'فاضل', Translation: 'ترجمہ', Other: 'دیگر' };
-  var CLASS_OLD = { 'قاعدہ': 'Qaida', 'ناظرہ': 'Nazra', 'حفظ': 'Hifz', 'ترجمہ': 'Translation', 'دیگر': 'Other' };
-  function normaliseClass(v) { return CLASS_OLD[v] || v || ''; }
-  function cls(v) {
-    if (!v) return '';
-    if (LANG !== 'ur') return v;
-    var parts = String(v).split(' — ');
-    var name = CLASS_UR[parts[0]] || parts[0];
-    if (parts[1]) return name + ' — ' + parts[1].replace('Level', 'لیول');
-    return name;
-  }
+  // Class names are English, stored in the Sheet. No translation.
+  function normaliseClass(v) { return v || ''; }
+  function cls(v) { return v || ''; }
   function classOptions(selected) {
     var list = classes.filter(function (c) { return c.Status === 'Active'; });
     if (!list.length) list = defaultClassesLocal();
@@ -603,21 +412,29 @@
   }
 
   function refreshFromServer() {
-    if (!MMLocal.getApiUrl()) return;
-    MMLocal.apiGet('getStudents').then(function (d) { if (d.students) { students = d.students; students.forEach(function (s) { s.Class = normaliseClass(s.Class); if (s.InCharge === undefined) s.InCharge = ''; }); MMLocal.saveLocal('students', students); renderStudents(); renderDashboard(); } }).catch(function () {});
-    MMLocal.apiGet('getTeachers').then(function (d) { if (d.teachers) { teachers = d.teachers; teachers.forEach(function (x) { x.Class = normaliseClass(x.Class); }); MMLocal.saveLocal('teachers', teachers); renderTeachers(); fillInChargeSelect(); toggleUserTeacher(); } }).catch(function () {});
-    MMLocal.apiGet('getFees').then(function (d) { if (d.fees) { fees = d.fees; MMLocal.saveLocal('fees', fees); renderFees(); } }).catch(function () {});
-    MMLocal.apiGet('getAccounts').then(function (d) { if (d.accounts) { accounts = d.accounts; MMLocal.saveLocal('accounts', accounts); renderAccounts(); renderDashboard(); } }).catch(function () {});
-    MMLocal.apiGet('getReceipts').then(function (d) { if (d.receipts) { receipts = d.receipts; MMLocal.saveLocal('receipts', receipts); renderReceipts(); } }).catch(function () {});
-    MMLocal.apiGet('getDashboard').then(function (d) { if (d.dashboard) renderDashboard(d.dashboard); }).catch(function () {});
-    MMLocal.apiGet('getSettings').then(function (d) { if (d.settings) { settings = Object.assign(defaultSettings(), d.settings); MMLocal.saveLocal('settings', settings); applyBranding(); fillSettingsForm(); } }).catch(function () {});
-    MMLocal.apiGet('getUsers').then(function (d) { if (d.users) { users = d.users; MMLocal.saveLocal('users', users); renderUsers(); } }).catch(function () {});
-    MMLocal.apiGet('getItems').then(function (d) { if (d.items) { items = d.items; MMLocal.saveLocal('items', items); renderItems(); } }).catch(function () {});
-    MMLocal.apiGet('getClasses').then(function (d) { if (d.classes && d.classes.length) { classes = d.classes; MMLocal.saveLocal('classes', classes); fillClassSelects(); renderClasses(); } }).catch(function () {});
-    MMLocal.apiGet('getSabaq').then(function (d) { if (d.sabaq) { sabaq = d.sabaq; MMLocal.saveLocal('sabaq', sabaq); } }).catch(function () {});
-    MMLocal.apiGet('getAttendance').then(function (d) { if (d.attendance) { attendance = d.attendance; MMLocal.saveLocal('attendance', attendance); renderDashboard(); } }).catch(function () {});
-    MMLocal.apiGet('getVehicles').then(function (d) { if (d.vehicles) { vehicles = d.vehicles; MMLocal.saveLocal('vehicles', vehicles); renderVehicles(); } }).catch(function () {});
-    MMLocal.apiGet('getLedger').then(function (d) { if (d.ledger) { ledger = d.ledger; MMLocal.saveLocal('ledger', ledger); } }).catch(function () {});
+    if (!MMLocal.getApiUrl()) return Promise.resolve(false);
+    var okCount = 0;
+    function ok(p) { return p.then(function (d) { okCount++; return d; }).catch(function () { return null; }); }
+    var ps = [];
+    ps.push(ok(MMLocal.apiGet('getStudents')).then(function (d) { if (d && d.students) { students = d.students; students.forEach(function (s) { s.Class = normaliseClass(s.Class); if (s.InCharge === undefined) s.InCharge = ''; }); MMLocal.saveLocal('students', students); renderStudents(); renderDashboard(); } }));
+    ps.push(ok(MMLocal.apiGet('getTeachers')).then(function (d) { if (d && d.teachers) { teachers = d.teachers; teachers.forEach(function (x) { x.Class = normaliseClass(x.Class); }); MMLocal.saveLocal('teachers', teachers); renderTeachers(); fillInChargeSelect(); toggleUserTeacher(); } }));
+    ps.push(ok(MMLocal.apiGet('getFees')).then(function (d) { if (d && d.fees) { fees = d.fees; MMLocal.saveLocal('fees', fees); renderFees(); } }));
+    ps.push(ok(MMLocal.apiGet('getAccounts')).then(function (d) { if (d && d.accounts) { accounts = d.accounts; MMLocal.saveLocal('accounts', accounts); renderAccounts(); renderDashboard(); } }));
+    ps.push(ok(MMLocal.apiGet('getReceipts')).then(function (d) { if (d && d.receipts) { receipts = d.receipts; MMLocal.saveLocal('receipts', receipts); renderReceipts(); } }));
+    ps.push(ok(MMLocal.apiGet('getDashboard')).then(function (d) { if (d && d.dashboard) renderDashboard(d.dashboard); }));
+    ps.push(ok(MMLocal.apiGet('getSettings')).then(function (d) { if (d && d.settings) { settings = Object.assign(defaultSettings(), d.settings); MMLocal.saveLocal('settings', settings); applyBranding(); fillSettingsForm(); } }));
+    ps.push(ok(MMLocal.apiGet('getUsers')).then(function (d) { if (d && d.users) { users = d.users; MMLocal.saveLocal('users', users); renderUsers(); } }));
+    ps.push(ok(MMLocal.apiGet('getItems')).then(function (d) { if (d && d.items) { items = d.items; MMLocal.saveLocal('items', items); renderItems(); } }));
+    ps.push(ok(MMLocal.apiGet('getClasses')).then(function (d) { if (d && d.classes && d.classes.length) { classes = d.classes; MMLocal.saveLocal('classes', classes); fillClassSelects(); renderClasses(); } }));
+    ps.push(ok(MMLocal.apiGet('getSabaq')).then(function (d) { if (d && d.sabaq) { sabaq = d.sabaq; MMLocal.saveLocal('sabaq', sabaq); } }));
+    ps.push(ok(MMLocal.apiGet('getAttendance')).then(function (d) { if (d && d.attendance) { attendance = d.attendance; MMLocal.saveLocal('attendance', attendance); renderDashboard(); } }));
+    ps.push(ok(MMLocal.apiGet('getLedger')).then(function (d) { if (d && d.ledger) { ledger = d.ledger; MMLocal.saveLocal('ledger', ledger); } }));
+    ps.push(ok(MMLocal.apiGet('getMessages')).then(function (d) { if (d && d.messages) { messages = d.messages; MMLocal.saveLocal('messages', messages); renderMessages(); } }));
+    ps.push(ok(MMLocal.apiGet('getSalary')).then(function (d) { if (d && d.salary) { salary = d.salary; MMLocal.saveLocal('salary', salary); if (profileTeacherId) renderTeacherProfile(); } }));
+    return Promise.all(ps).then(function () {
+      if (okCount > 0) { lastVerifiedSync = new Date().toISOString(); refreshSyncPill(); return true; }
+      return false;
+    });
   }
 
   /* ---------- dashboard ---------- */
@@ -695,7 +512,7 @@
     // = his TeacherID) or, when no InCharge is set, the students of his Class.
     if (role() !== 'Qari') return students;
     var me = myTeacher();
-    if (!me) return students;
+    if (!me) return []; // not linked to a teacher record yet — sees nobody
     return students.filter(function (s) {
       if (s.InCharge) return String(s.InCharge) === String(me.TeacherID);
       return s.Class === me.Class;
@@ -754,7 +571,7 @@
     var s = students.find(function (x) { return String(x.StudentID) === String(id); });
     if (!s) return;
     var next = s.Status === 'Current' ? 'HifzCompleted' : s.Status === 'HifzCompleted' ? 'Left' : 'Current';
-    if (!confirm(t('changeStatusQ') + s.Name + t('changeStatusQ2') + s.Status + t('changeStatusQ3') + next + (LANG === 'ur' ? ' کریں؟' : '?'))) return;
+    if (!confirm(t('changeStatusQ') + s.Name + t('changeStatusQ2') + s.Status + t('changeStatusQ3') + next + '?')) return;
     s.Status = next;
     persistStudent(s);
   };
@@ -831,6 +648,7 @@
       '<h4>' + t('sabaqRecent') + '</h4><div class="log">' + (sabaqRows.length ? sabaqRows.map(function (r) { return r.Date + ' — ' + r.Sabaq + ' (' + (r.Amount || '') + ') ' + (r.TeacherNote || ''); }).join('\n') : '—') + '</div>' +
       '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn small" onclick="printStudentProfile()">' + t('printProfile') + '</button>' +
+      '<button class="btn small secondary" onclick="downloadStudentProfileHTML()">Download profile (HTML)</button>' +
       '<button class="btn small secondary" onclick="downloadStudentProfile()">' + t('downloadProfile') + '</button>' +
       '<button class="btn small secondary" onclick="shareStudentProfile()">' + t('shareProfile') + '</button></div>';
     var sel = $('ledgerStudent'); if (sel) sel.value = s.StudentID;
@@ -863,7 +681,7 @@
     if (!s) return;
     if (calYear === null) { var n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
     var title = $('calTitle');
-    if (title) title.textContent = new Date(calYear, calMonth, 1).toLocaleDateString(LANG === 'ur' ? 'ur-PK' : 'en-GB', { month: 'long', year: 'numeric' });
+    if (title) title.textContent = new Date(calYear, calMonth, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     var first = new Date(calYear, calMonth, 1);
     var startDow = (first.getDay() + 6) % 7; // Monday first
     var daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -978,30 +796,50 @@
     renderTeacherProfile();
     showSection('teacher-profile');
   };
-  window.backToTeachers = function () { profileTeacherId = null; showSection('teachers'); };
+  window.backToTeachers = function () { profileTeacherId = null; if (role() === 'Qari') { showSection('my-class'); return; } showSection('teachers'); };
   function renderTeacherProfile() {
     var t = teachers.find(function (x) { return String(x.TeacherID) === String(profileTeacherId); });
     var el = $('teacherProfileView'); if (!el || !t) return;
     var myStudents = students.filter(function (s) { return s.InCharge ? String(s.InCharge) === String(t.TeacherID) : s.Class === t.Class; });
-    var salaryRows = receipts.filter(function (r) { return String(r.TeacherID) === String(t.TeacherID); });
-    var advanceRows = accounts.filter(function (a) { return String(a.TeacherID) === String(t.TeacherID) && String(a.Category).indexOf('ایڈوانس') !== -1; });
-    var salaryPaid = salaryRows.reduce(function (s, r) { return s + (Number(r.Amount) || 0); }, 0);
-    var advances = advanceRows.reduce(function (s, r) { return s + (Number(r.Amount) || 0); }, 0);
+    var salRows = salary.filter(function (r) { return String(r.TeacherID) === String(t.TeacherID); });
+    var ym = thisMonth();
+    var advMonth = salRows.filter(function (r) { return r.Type === 'Advance' && String(r.Date || '').indexOf(ym) === 0; }).reduce(function (s, r) { return s + (Number(r.Amount) || 0); }, 0);
+    var paidMonth = salRows.filter(function (r) { return r.Type === 'Salary' && String(r.Date || '').indexOf(ym) === 0; }).reduce(function (s, r) { return s + (Number(r.Amount) || 0); }, 0);
+    var advTotal = salRows.filter(function (r) { return r.Type === 'Advance'; }).reduce(function (s, r) { return s + (Number(r.Amount) || 0); }, 0);
+    var paidTotal = salRows.filter(function (r) { return r.Type === 'Salary'; }).reduce(function (s, r) { return s + (Number(r.Amount) || 0); }, 0);
+    var dueThisMonth = Math.max(0, (Number(t.MonthlySalary) || 0) - advMonth - paidMonth);
     var marked = attendance.filter(function (a) { return a.MarkedBy === t.Name; });
     el.innerHTML =
-      '<div class="profile-head"><div class="profile-photo placeholder">' + esc((t.Name || '?').charAt(0)) + '</div><div><h3>' + esc(t.Name) + '</h3>' +
+      '<div class="profile-head">' + (t.PhotoURL ? '<img src="' + esc(t.PhotoURL) + '" class="profile-photo" alt="">' : '<div class="profile-photo placeholder">' + esc((t.Name || '?').charAt(0)) + '</div>') + '<div><h3>' + esc(t.Name) + '</h3>' +
       '<p>' + t('phoneLabel') + ': <span dir="ltr">' + esc(t.Phone || '—') + '</span> · ' + t('fClass') + ': ' + esc(cls(t.Class)) + ' · ' + t('joinLabel') + ': ' + esc(t.JoinDate) + ' · ' + t('fStatus') + ': ' + esc(t.Status) + (t.LeaveDate ? ' (' + esc(t.LeaveDate) + ')' : '') + '</p>' +
-      '<p>' + t('salaryLabel') + ': ' + rs(t.MonthlySalary) + ' · ' + t('salaryPaidLabel') + ': ' + rs(salaryPaid) + ' · ' + t('advancesLabel') + ': ' + rs(advances) + '</p>' +
+      '<p>' + t('salaryLabel') + ': ' + rs(t.MonthlySalary) + ' · ' + t('advancesLabel') + ': ' + rs(advTotal) + ' · ' + t('salaryPaidLabel') + ': ' + rs(paidTotal) + ' · Balance due this month: ' + rs(dueThisMonth) + '</p>' +
       '<p>' + t('studentsInClass') + ': ' + myStudents.filter(function (s) { return s.Status === 'Current'; }).length + ' / ' + myStudents.length + '</p>' +
       '<p>' + t('attMarkedLabel') + ': ' + marked.length + '</p></div></div>' +
       '<h4>' + t('studentsInClass') + '</h4><div class="log">' + (myStudents.length ? myStudents.map(function (s) { return s.Name + ' — ' + s.Class + ' (' + s.Status + ')'; }).join('\n') : '—') + '</div>' +
       '<h4>' + t('salaryHistory') + '</h4><div class="log">' +
-      (salaryRows.length ? salaryRows.map(function (r) { return r.Date + ' — ' + r.Purpose + ' — ' + rs(r.Amount) + ' (' + r.ReceiptNo + ')'; }).join('\n') : t('noSalaryRecord')) + '\n' +
-      (advanceRows.length ? advanceRows.map(function (a) { return a.Date + ' — Advance — ' + rs(a.Amount) + ' — ' + a.Description; }).join('\n') : '') + '</div>';
+      (salRows.length ? salRows.slice().reverse().map(function (r) { return r.Date + ' — ' + r.Type + ' — ' + rs(r.Amount) + ' (' + (r.ReceiptNo || 'receipt pending') + ')' + (r.Note ? ' — ' + r.Note : ''); }).join('\n') : t('noSalaryRecord')) + '</div>' +
+      (role() === 'Admin' ? '<h4>Record salary / advance payment</h4><form onsubmit="saveSalaryPaymentUI(event)"><div class="grid">' +
+      '<div><label>Date</label><input id="salDate" type="date" value="' + today() + '"></div>' +
+      '<div><label>Type</label><select id="salType"><option value="Salary">Salary</option><option value="Advance">Advance</option></select></div>' +
+      '<div><label>Amount (Rs) *</label><input id="salAmount" type="number" min="0" required></div>' +
+      '<div class="full"><label>Note</label><input id="salNote" placeholder="e.g. Salary for November"></div>' +
+      '</div><br><button class="btn" type="submit">Save salary payment &amp; receipt</button></form>' : '');
   }
+  window.saveSalaryPaymentUI = function (e) {
+    e.preventDefault();
+    if (!requireRole('saveSalaryPayment')) return;
+    var t = teachers.filter(function (x) { return String(x.TeacherID) === String(profileTeacherId); })[0]; if (!t) return;
+    var p = { TeacherID: t.TeacherID, Date: ($('salDate') && $('salDate').value) || today(), Type: ($('salType') && $('salType').value) || 'Salary', Amount: Number(($('salAmount') && $('salAmount').value) || 0) || 0, Note: ($('salNote') && $('salNote').value.trim()) || '' };
+    if (!p.Amount) { alert(t('amountRequired')); return; }
+    salary.push(p); MMLocal.saveLocal('salary', salary);
+    MMLocal.queueChange('saveSalaryPayment', { payment: p, role: role() });
+    renderTeacherProfile(); renderDashboard(); refreshSyncPill();
+    alert('Salary payment saved on this device — syncing to the Sheet. The receipt number appears after sync.');
+  };
 
   /* ---------- attendance ---------- */
   window.renderAttendanceList = function () {
+    var mp = $('attMarkPanel'); if (mp) mp.style.display = role() === 'Admin' ? 'none' : '';
     var session = $('attSession').value;
     var current = students.filter(function (s) { return s.Status === 'Current'; });
     if (role() === 'Qari') current = visibleStudents().filter(function (s) { return s.Status === 'Current'; });
@@ -1162,7 +1000,7 @@
     fees.push(feeRow); MMLocal.saveLocal('fees', fees);
     var rec = { ReceiptNo: receiptNo, Date: fee.date, Fund: 'Madrasa', StudentID: fee.studentId, TeacherID: '', Amount: fee.amount, Purpose: 'Monthly fee ' + fee.month };
     receipts.push(rec); MMLocal.saveLocal('receipts', receipts);
-    accounts.push({ Date: fee.date, Fund: 'Madrasa', Type: 'Income', Category: 'فیس', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: fee.amount, Description: 'Fee ' + fee.month + ' — ' + studentName(fee.studentId), ReceiptNo: receiptNo, EnteredBy: currentUser ? currentUser.Name : '', TeacherID: '' });
+    accounts.push({ Date: fee.date, Fund: 'Madrasa', Type: 'Income', Category: 'Fee', Item: '', Allocated: '', AllocatedAmount: 0, SpentAmount: 0, Amount: fee.amount, Description: 'Fee ' + fee.month + ' — ' + studentName(fee.studentId), ReceiptNo: receiptNo, EnteredBy: currentUser ? currentUser.Name : '', TeacherID: '' });
     MMLocal.saveLocal('accounts', accounts);
     ledger.push({ LedgerID: 'LED-' + Date.now(), Date: fee.date, StudentID: fee.studentId, Type: 'Fee', Amount: fee.amount, Method: fee.method, ReceiptNo: receiptNo, Note: 'Monthly fee ' + fee.month });
     MMLocal.saveLocal('ledger', ledger);
@@ -1192,10 +1030,10 @@
   window.recordTransactionUI = function (e) {
     e.preventDefault();
     if (!requireRole('recordTransaction')) return;
-    var tx = { fund: $('txFund').value, type: $('txType').value, category: $('txCategory').value.trim(), item: $('txItem') ? $('txItem').value.trim() : '', allocated: $('txAllocated') ? $('txAllocated').value : '', allocatedAmount: $('txAllocAmount') ? Number($('txAllocAmount').value) || 0 : 0, amount: Number($('txAmount').value) || 0, description: $('txDesc').value.trim(), date: $('txDate').value || today(), receiptNo: '', enteredBy: currentUser ? currentUser.Name : '', teacherId: $('txTeacher') ? $('txTeacher').value : '', vehicleId: $('txVehicle') ? $('txVehicle').value : '' };
+    var tx = { fund: $('txFund').value, type: $('txType').value, category: $('txCategory').value.trim(), item: $('txItem') ? $('txItem').value.trim() : '', allocated: $('txAllocated') ? $('txAllocated').value : '', allocatedAmount: $('txAllocAmount') ? Number($('txAllocAmount').value) || 0 : 0, amount: Number($('txAmount').value) || 0, description: $('txDesc').value.trim(), date: $('txDate').value || today(), receiptNo: '', enteredBy: currentUser ? currentUser.Name : '', teacherId: $('txTeacher') ? $('txTeacher').value : '' };
     if (!tx.amount) { alert(t('amountRequired')); return; }
     if (tx.type === 'Income') tx.receiptNo = nextReceiptNoLocal();
-    accounts.push({ Date: tx.date, Fund: tx.fund, Type: tx.type, Category: tx.category, Item: tx.item, Allocated: tx.allocated, AllocatedAmount: tx.allocatedAmount, SpentAmount: tx.type === 'Expense' ? tx.amount : 0, Amount: tx.amount, Description: tx.description, ReceiptNo: tx.receiptNo, EnteredBy: tx.enteredBy, TeacherID: tx.teacherId, VehicleID: tx.vehicleId });
+    accounts.push({ Date: tx.date, Fund: tx.fund, Type: tx.type, Category: tx.category, Item: tx.item, Allocated: tx.allocated, AllocatedAmount: tx.allocatedAmount, SpentAmount: tx.type === 'Expense' ? tx.amount : 0, Amount: tx.amount, Description: tx.description, ReceiptNo: tx.receiptNo, EnteredBy: tx.enteredBy, TeacherID: tx.teacherId });
     MMLocal.saveLocal('accounts', accounts);
     if (tx.receiptNo) { receipts.push({ ReceiptNo: tx.receiptNo, Date: tx.date, Fund: tx.fund, StudentID: '', TeacherID: tx.teacherId, Amount: tx.amount, Purpose: tx.category + ' — ' + tx.description }); MMLocal.saveLocal('receipts', receipts); }
     if (tx.type === 'Expense' && tx.item) {
@@ -1215,10 +1053,9 @@
     $('balMadrasa').textContent = rs(bal.Madrasa || 0);
     $('balMasjid').textContent = rs(bal.Masjid || 0);
     $('accountsTable').innerHTML = rows.length ? rows.slice().reverse().map(function (a) {
-      return '<tr><td>' + esc(a.Date) + '</td><td>' + esc(a.Fund) + '</td><td>' + esc(a.Type) + '</td><td>' + esc(a.Category) + '</td><td>' + esc(a.Item || '—') + '</td><td>' + esc(a.Allocated || '—') + '</td><td>' + esc(vehicleNo(a.VehicleID)) + '</td><td>' + rs(a.Amount) + '</td><td>' + esc(a.Description) + '</td><td>' + esc(a.ReceiptNo) + '</td></tr>';
-    }).join('') : '<tr><td colspan="10" class="empty">' + t('No transactions yet.') + '</td></tr>';
+      return '<tr><td>' + esc(a.Date) + '</td><td>' + esc(a.Fund) + '</td><td>' + esc(a.Type) + '</td><td>' + esc(a.Category) + '</td><td>' + esc(a.Item || '—') + '</td><td>' + esc(a.Allocated || '—') + '</td><td>' + rs(a.Amount) + '</td><td>' + esc(a.Description) + '</td><td>' + esc(a.ReceiptNo) + '</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">' + t('No transactions yet.') + '</td></tr>';
     var ts = $('txTeacher'); if (ts) ts.innerHTML = '<option value="">—</option>' + teachers.map(function (t) { return '<option value="' + esc(t.TeacherID) + '">' + esc(t.Name) + '</option>'; }).join('');
-    fillVehicleSelect();
   };
   window.saveItemUI = function (e) {
     e.preventDefault();
@@ -1242,7 +1079,8 @@
   window.renderReceipts = function () {
     $('receiptsTable').innerHTML = receipts.length ? receipts.slice().reverse().map(function (r) {
       return '<tr><td>' + esc(r.ReceiptNo) + '</td><td>' + esc(r.Date) + '</td><td>' + esc(r.Fund) + '</td><td>' + rs(r.Amount) + '</td><td>' + esc(r.Purpose) + '</td>' +
-        '<td><button class="btn small secondary" onclick="printReceiptSlip(\'' + esc(r.ReceiptNo) + '\')">' + t('printSlip') + '</button></td></tr>';
+        '<td><button class="btn small secondary" onclick="printReceiptSlip(\'' + esc(r.ReceiptNo) + '\')">' + t('printSlip') + '</button> ' +
+        '<button class="btn small secondary" onclick="downloadReceiptSlip(\'' + esc(r.ReceiptNo) + '\')">Download slip</button></td></tr>';
     }).join('') : '<tr><td colspan="6" class="empty">' + t('No receipts yet.') + '</td></tr>';
   };
 
@@ -1273,39 +1111,22 @@
   window.renderUsers = function () {
     var el = $('usersTable'); if (!el) return;
     el.innerHTML = users.length ? users.map(function (u) {
-      var ver = String(u.EmailVerified) === 'Yes' ? '<span class="badge verified">Verified ✓' + (u.VerifiedDate ? ' ' + esc(u.VerifiedDate) : '') + '</span>' : '<span class="badge not-verified">Not verified</span>';
       var linked = u.TeacherID ? teacherName(u.TeacherID) : '—';
       return '<tr><td>' + esc(u.Name) + '</td><td>' + esc(u.Username) + '</td><td>' + esc(u.Role) + '</td><td>' + esc(linked) + '</td><td dir="ltr">' + esc(u.Phone || '') + '</td>' +
-        '<td dir="ltr">' + esc(u.Email || '—') + '</td><td>' + ver + '</td><td>' + esc(u.Status) + '</td><td>' + esc(permSummary(u)) + '</td>' +
+        '<td dir="ltr">' + esc(u.Email || '—') + '</td><td>' + esc(u.Status) + '</td>' +
         '<td><button class="btn small secondary" onclick="toggleUser(\'' + esc(u.UserID) + '\')">' + (u.Status === 'Active' ? t('disable') : t('enable')) + '</button> ' +
         '<button class="btn small secondary" onclick="resetUserPassword(\'' + esc(u.UserID) + '\')">' + t('resetPass') + '</button> ' +
         '<button class="btn small secondary" onclick="editUser(\'' + esc(u.UserID) + '\')">' + t('edit') + '</button></td></tr>';
-    }).join('') : '<tr><td colspan="10" class="empty">' + t('No users yet.') + '</td></tr>';
-    fillAdminEmailUsers();
+    }).join('') : '<tr><td colspan="8" class="empty">' + t('No users yet.') + '</td></tr>';
   };
-  function permSummary(u) {
-    if (u.Role !== 'Editor') return '—';
-    var p = u.Permissions ? String(u.Permissions).split(',') : [];
-    if (!p.length) return t('fullAccess');
-    return p.map(function (x) { var parts = x.split(':'); return parts[0] + ' (' + parts[1] + ')'; }).join(', ');
-  }
-  function readPerms() {
-    var areas = ['students', 'fees', 'accounts', 'attendance'];
-    return areas.filter(function (a) { var el = $('perm' + a.charAt(0).toUpperCase() + a.slice(1) + 'Edit'); return el && el.checked; }).map(function (a) { return a + ':edit'; }).join(',');
-  }
-  function fillPerms(p) {
-    var list = p ? String(p).split(',') : [];
-    ['students', 'fees', 'accounts', 'attendance'].forEach(function (a) { var el = $('perm' + a.charAt(0).toUpperCase() + a.slice(1) + 'Edit'); if (el) el.checked = list.indexOf(a + ':edit') !== -1; });
-  }
   window.editUser = function (id) {
     if (!requireRole('saveUser')) return;
     var u = users.filter(function (x) { return String(x.UserID) === String(id); })[0]; if (!u) return;
     $('newUserId').value = u.UserID; $('newUserName').value = u.Name || ''; $('newUserUsername').value = u.Username || '';
     $('newUserPassword').value = ''; $('newUserPassword').required = false;
-    $('newUserRole').value = u.Role || 'Editor'; $('newUserPhone').value = u.Phone || '';
+    $('newUserRole').value = u.Role || 'Qari'; $('newUserPhone').value = u.Phone || '';
     if ($('newUserEmail')) $('newUserEmail').value = u.Email || '';
     if ($('newUserTeacher')) $('newUserTeacher').value = u.TeacherID || '';
-    fillPerms(u.Permissions || '');
     toggleUserTeacher(); window.scrollTo(0, 0);
   };
   window.toggleUser = function (id) {
@@ -1327,17 +1148,18 @@
     e.preventDefault();
     if (!requireRole('saveUser')) return;
     var editId = $('newUserId') ? $('newUserId').value : '';
-    var u = { UserID: editId || ('USR-' + Date.now()), Name: $('newUserName').value.trim(), Username: $('newUserUsername').value.trim(), Password: $('newUserPassword').value, Role: $('newUserRole').value, Phone: $('newUserPhone').value.trim(), Status: 'Active', Email: $('newUserEmail') ? $('newUserEmail').value.trim() : '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '', TeacherID: ($('newUserRole').value === 'Qari' && $('newUserTeacher')) ? $('newUserTeacher').value : '', Permissions: readPerms() };
+    var u = { UserID: editId || ('USR-' + Date.now()), Name: $('newUserName').value.trim(), Username: $('newUserUsername').value.trim(), Password: $('newUserPassword').value, Role: $('newUserRole').value, Phone: $('newUserPhone').value.trim(), Status: 'Active', Email: $('newUserEmail') ? $('newUserEmail').value.trim() : '', TeacherID: ($('newUserRole').value === 'Qari' && $('newUserTeacher')) ? $('newUserTeacher').value : '' };
+    if (u.Role === 'Qari' && !u.TeacherID) { alert('A Qari must be linked to a teacher record — pick the teacher first, otherwise he will see no students.'); return; }
     if (!u.Name || !u.Username || (!editId && !u.Password)) { alert('Name, username and password are required.'); return; }
     if (users.some(function (x) { return String(x.Username) === u.Username && String(x.UserID) !== String(u.UserID); })) { alert('Username already exists.'); return; }
     if (editId) {
       var ex = users.filter(function (x) { return String(x.UserID) === String(editId); })[0];
-      if (ex) { if (!u.Password) u.Password = ex.Password; u.Status = ex.Status; u.EmailVerified = ex.EmailVerified || 'No'; u.VerifiedDate = ex.VerifiedDate || ''; Object.assign(ex, u); MMLocal.saveLocal('users', users); persistUser(ex); }
+      if (ex) { if (!u.Password) u.Password = ex.Password; u.Status = ex.Status; Object.assign(ex, u); MMLocal.saveLocal('users', users); persistUser(ex); }
     } else {
       users.push(u); MMLocal.saveLocal('users', users);
       MMLocal.queueChange('saveUser', { user: u, role: role() });
     }
-    e.target.reset(); if ($('newUserId')) $('newUserId').value = ''; $('newUserPassword').required = true; fillPerms(''); toggleUserTeacher();
+    e.target.reset(); if ($('newUserId')) $('newUserId').value = ''; $('newUserPassword').required = true; toggleUserTeacher();
     renderUsers(); refreshSyncPill();
     alert(editId ? ('User updated (' + u.Role + '). Username: ' + u.Username) : ('User created (' + u.Role + '). Username: ' + u.Username + (u.TeacherID ? ' — linked to ' + teacherName(u.TeacherID) : '')));
   };
@@ -1423,7 +1245,6 @@
     if (kind === 'item') { showSection('accounts'); var it = $('itemName'); if (it) it.focus(); }
     if (kind === 'class') { showSection('settings'); var c = $('className'); if (c) c.focus(); }
     if (kind === 'user') { showSection('settings'); var u = $('newUserName'); if (u) u.focus(); }
-    if (kind === 'vehicle') { showSection('vehicles'); var v = $('vehNo'); if (v) v.focus(); }
   };
 
   /* ---------- classes (Admin only) ---------- */
@@ -1455,23 +1276,51 @@
     e.target.reset(); $('classId').value = '';
   };
 
-  /* ---------- charts (Chart.js, with text fallback) ---------- */
-  function lastNDays(n) {
-    var out = [], d = new Date();
-    for (var i = n - 1; i >= 0; i--) { var x = new Date(d); x.setDate(d.getDate() - i); out.push(x.toISOString().slice(0, 10)); }
+  /* ---------- charts: lightweight inline SVG (no library, works offline) ---------- */
+  function svgBarChart(labels, datasets) {
+    var max = 1;
+    datasets.forEach(function (ds) { ds.data.forEach(function (v) { if (v > max) max = v; }); });
+    var W = 560, H = 220, padL = 34, padB = 26, padT = 12, plotW = W - padL - 8, plotH = H - padT - padB;
+    var n = labels.length || 1;
+    var groupW = plotW / n;
+    var barW = Math.max(4, Math.min(26, (groupW - 6) / Math.max(1, datasets.length)));
+    var out = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img">';
+    [0.25, 0.5, 0.75, 1].forEach(function (f) { var y = padT + plotH * (1 - f); out += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - 8) + '" y2="' + y + '" stroke="#e2e8f0" stroke-width="1"/><text x="' + (padL - 4) + '" y="' + (y + 4) + '" font-size="10" fill="#64748b" text-anchor="end">' + Math.round(max * f) + '</text>'; });
+    labels.forEach(function (lab, i) {
+      var cx = padL + groupW * i + groupW / 2;
+      datasets.forEach(function (ds, j) {
+        var v = ds.data[i] || 0;
+        var h = v > 0 ? Math.max(2, plotH * v / max) : 0;
+        var x = cx - (barW * datasets.length) / 2 + j * barW;
+        out += '<rect x="' + x.toFixed(1) + '" y="' + (padT + plotH - h).toFixed(1) + '" width="' + barW + '" height="' + h.toFixed(1) + '" fill="' + ds.color + '" rx="2"><title>' + esc(ds.label) + ': ' + v + '</title></rect>';
+      });
+      out += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" font-size="10" fill="#475569" text-anchor="middle">' + esc(String(lab)) + '</text>';
+    });
+    out += '</svg>';
+    out += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#475569;margin-top:4px">' + datasets.map(function (ds) { return '<span><span style="display:inline-block;width:10px;height:10px;background:' + ds.color + ';border-radius:2px;margin-right:4px"></span>' + esc(ds.label) + '</span>'; }).join('') + '</div>';
     return out;
   }
   function drawChart(id, fallbackId, config) {
-    var cv = $(id), fb = $(fallbackId);
-    if (typeof Chart === 'undefined') {
-      if (cv) cv.style.display = 'none';
-      if (fb) { fb.style.display = 'block'; fb.textContent = t('chartsUnavailable'); }
+    var el = $(id); if (!el) return;
+    var labels = (config.data && config.data.labels) || [];
+    var sets = (config.data && config.data.datasets) || [];
+    var norm = sets.map(function (ds) {
+      var color = ds.backgroundColor || ds.borderColor || '#4f46e5';
+      if (Array.isArray(color)) color = color[0];
+      return { label: ds.label || '', data: ds.data || [], color: color };
+    });
+    if (!labels.length) { el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
+    if (config.type === 'doughnut') {
+      var total = norm[0].data.reduce(function (s, v) { return s + (Number(v) || 0); }, 0) || 1;
+      var palette = ['#4f46e5', '#16a34a', '#d97706', '#dc2626', '#0891b2', '#7c3aed', '#db2777', '#65a30d'];
+      el.innerHTML = labels.map(function (lab, i) {
+        var v = norm[0].data[i] || 0;
+        var pct = Math.round(v / total * 100);
+        return '<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px"><span style="width:120px;flex:none">' + esc(lab) + '</span><span style="flex:1;height:14px;background:#eef2ff;border-radius:7px;overflow:hidden"><span style="display:block;height:100%;width:' + pct + '%;background:' + palette[i % palette.length] + '"></span></span><b style="width:44px;text-align:right">' + v + '</b></div>';
+      }).join('');
       return;
     }
-    if (fb) fb.style.display = 'none';
-    if (cv) cv.style.display = 'block';
-    if (charts[id]) charts[id].destroy();
-    if (cv) charts[id] = new Chart(cv, config);
+    el.innerHTML = svgBarChart(labels, norm);
   }
   function attSeries(list, days) {
     return days.map(function (d) {
@@ -1492,29 +1341,33 @@
       { label: t('present'), data: series.map(function (s) { return s.present; }), backgroundColor: '#16a34a' },
       { label: t('absent'), data: series.map(function (s) { return s.absent; }), backgroundColor: '#dc2626' },
       { label: t('leave'), data: series.map(function (s) { return s.leave; }), backgroundColor: '#d97706' } ] },
-      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+      options: {} });
     var byClass = {};
     students.forEach(function (s) { if (s.Status === 'Current') byClass[s.Class] = (byClass[s.Class] || 0) + 1; });
-    drawChart('chartClass', 'chartClassFallback', { type: 'doughnut', data: { labels: Object.keys(byClass).map(cls), datasets: [{ data: Object.keys(byClass).map(function (k) { return byClass[k]; }), backgroundColor: ['#4f46e5', '#16a34a', '#d97706', '#dc2626', '#0891b2', '#7c3aed', '#db2777', '#65a30d'] }] }, options: { responsive: true } });
+    drawChart('chartClass', 'chartClassFallback', { type: 'doughnut', data: { labels: Object.keys(byClass).map(cls), datasets: [{ data: Object.keys(byClass).map(function (k) { return byClass[k]; }), backgroundColor: ['#4f46e5', '#16a34a', '#d97706', '#dc2626', '#0891b2', '#7c3aed', '#db2777', '#65a30d'] }] }, options: {} });
     var months = [], feesByMonth = {};
     fees.forEach(function (f) { if (f.Status === 'Paid' && f.Month) feesByMonth[f.Month] = (feesByMonth[f.Month] || 0) + (Number(f.Amount) || 0); });
     Object.keys(feesByMonth).sort().slice(-6).forEach(function (m) { months.push(m); });
-    drawChart('chartFees', 'chartFeesFallback', { type: 'bar', data: { labels: months, datasets: [{ label: t('navFees'), data: months.map(function (m) { return feesByMonth[m]; }), backgroundColor: '#4f46e5' }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
+    drawChart('chartFees', 'chartFeesFallback', { type: 'bar', data: { labels: months, datasets: [{ label: t('navFees'), data: months.map(function (m) { return feesByMonth[m]; }), backgroundColor: '#4f46e5' }] }, options: {} });
     var funds = { Madrasa: { in: 0, out: 0 }, Masjid: { in: 0, out: 0 } };
     accounts.forEach(function (a) { if (!funds[a.Fund]) return; if (a.Type === 'Income') funds[a.Fund].in += Number(a.Amount) || 0; if (a.Type === 'Expense') funds[a.Fund].out += Number(a.Amount) || 0; });
     drawChart('chartFunds', 'chartFundsFallback', { type: 'bar', data: { labels: ['Madrasa', 'Masjid'], datasets: [
       { label: 'Income', data: [funds.Madrasa.in, funds.Masjid.in], backgroundColor: '#16a34a' },
       { label: 'Expense', data: [funds.Madrasa.out, funds.Masjid.out], backgroundColor: '#dc2626' } ] },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } } });
+      options: {} });
     var admByMonth = {};
     students.forEach(function (s) { if (s.AdmissionDate) { var m = String(s.AdmissionDate).slice(0, 7); admByMonth[m] = (admByMonth[m] || 0) + 1; } });
     var admMonths = Object.keys(admByMonth).sort().slice(-6);
-    drawChart('chartAdm', 'chartAdmFallback', { type: 'line', data: { labels: admMonths, datasets: [{ label: t('navStudents'), data: admMonths.map(function (m) { return admByMonth[m]; }), borderColor: '#4f46e5', backgroundColor: '#4f46e5', tension: 0.3 }] }, options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+    drawChart('chartAdm', 'chartAdmFallback', { type: 'bar', data: { labels: admMonths, datasets: [{ label: t('navStudents'), data: admMonths.map(function (m) { return admByMonth[m]; }), borderColor: '#4f46e5', backgroundColor: '#4f46e5' }] }, options: {} });
+    var byStatus = { Current: 0, 'Hifz Completed': 0, Left: 0 };
+    students.forEach(function (s) { if (s.Status === 'HifzCompleted') byStatus['Hifz Completed']++; else if (s.Status === 'Left') byStatus.Left++; else byStatus.Current++; });
+    drawChart('chartStatus', 'chartStatusFallback', { type: 'bar', data: { labels: ['Current', 'Hifz Completed', 'Left'], datasets: [{ label: 'Students', data: [byStatus.Current, byStatus['Hifz Completed'], byStatus.Left], backgroundColor: '#4f46e5' }] }, options: {} });
   }
 
   /* ---------- My Class (Qari home) ---------- */
   function renderMyClass() {
     var me = myTeacher();
+    var nc = $('myClassNotice'); if (nc) nc.style.display = me ? 'none' : '';
     var list = visibleStudents().filter(function (s) { return s.Status === 'Current'; });
     var myIds = {};
     list.forEach(function (s) { myIds[s.StudentID] = s; });
@@ -1570,6 +1423,11 @@
         '<button class="toggle" onclick="toggleAtt(\'' + esc(s.StudentID) + '\',\'Leave\',this)">' + t('leave') + '</button></div>';
     }).join('') : '<div class="empty">' + t('No students in this session.') + '</div>';
   }
+  window.openMyProfile = function () {
+    var me = myTeacher();
+    if (!me) { alert('Your account is not linked to a teacher record yet. Ask the Admin to link it in Settings > Users.'); return; }
+    showTeacherProfile(me.TeacherID);
+  };
   window.saveMyClassAttendance = function () {
     if (!requireRole('saveAttendance')) return;
     if (!attSessionList.length) return;
@@ -1591,61 +1449,38 @@
   };
 
 
-  /* ---------- vehicles (expenses tracked separately) ---------- */
-  function vehicleNo(id) { if (!id) return '—'; var v = vehicles.filter(function (x) { return String(x.VehicleID) === String(id); })[0]; return v ? v.VehicleNo : id; }
-  function fillVehicleSelect() { var tv = $('txVehicle'); if (tv) tv.innerHTML = '<option value="">—</option>' + vehicles.filter(function (v) { return v.Status === 'Active'; }).map(function (v) { return '<option value="' + esc(v.VehicleID) + '">' + esc(v.VehicleNo) + ' — ' + esc(v.Type || '') + '</option>'; }).join(''); }
-  window.renderVehicles = function () {
-    var el = $('vehiclesTable'); if (!el) return;
-    el.innerHTML = vehicles.length ? vehicles.map(function (v) {
-      var exp = accounts.filter(function (a) { return String(a.VehicleID) === String(v.VehicleID) && a.Type === 'Expense'; }).reduce(function (s, a) { return s + (Number(a.Amount) || 0); }, 0);
-      return '<tr><td>' + esc(v.VehicleNo) + '</td><td>' + esc(v.Type || '—') + '</td><td>' + esc(v.Driver || '—') + '</td><td>' + esc(v.Route || '—') + '</td><td>' + esc(v.Status) + '</td><td>' + rs(exp) + '</td>' +
-        '<td><button class="btn small secondary" onclick="editVehicle(\'' + esc(v.VehicleID) + '\')">' + t('edit') + '</button></td></tr>';
-    }).join('') : '<tr><td colspan="7" class="empty">' + t('noVehicles') + '</td></tr>';
-    fillVehicleSelect();
-  };
-  window.editVehicle = function (id) {
-    if (!requireRole('saveVehicle')) return;
-    var v = vehicles.filter(function (x) { return String(x.VehicleID) === String(id); })[0]; if (!v) return;
-    $('vehId').value = v.VehicleID; $('vehNo').value = v.VehicleNo || ''; $('vehType').value = v.Type || '';
-    $('vehDriver').value = v.Driver || ''; $('vehRoute').value = v.Route || ''; $('vehStatus').value = v.Status || 'Active';
-    window.scrollTo(0, 0);
-  };
-  window.saveVehicleUI = function (e) {
-    e.preventDefault(); if (!requireRole('saveVehicle')) return;
-    var v = { VehicleID: $('vehId').value || ('VEH-' + Date.now()), VehicleNo: $('vehNo').value.trim(), Type: $('vehType').value.trim(), Driver: $('vehDriver').value.trim(), Route: $('vehRoute').value.trim(), Status: $('vehStatus').value };
-    if (!v.VehicleNo) { alert(t('vehicleNoRequired')); return; }
-    MMLocal.upsertLocal('vehicles', 'VehicleID', v);
-    MMLocal.queueChange('saveVehicle', { vehicle: v, role: role() });
-    e.target.reset(); $('vehId').value = '';
-    renderVehicles(); refreshSyncPill();
-  };
-  window.resetVehicleForm = function () { $('vehicleForm').reset(); $('vehId').value = ''; };
-
-  /* ---------- print: POS slip receipt (80mm) + A4 student profile ---------- */
-  window.printReceiptSlip = function (receiptNo) {
-    var rec = receipts.filter(function (r) { return String(r.ReceiptNo) === String(receiptNo); })[0]; if (!rec) return;
-    var name = rec.StudentID ? studentName(rec.StudentID) : '';
-    var w = window.open('', '_blank', 'width=340,height=640');
-    if (!w) { alert('Please allow pop-ups to print.'); return; }
-    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt ' + esc(rec.ReceiptNo) + '</title><style>body{font-family:monospace;width:80mm;margin:0 auto;padding:8px;font-size:13px}h2{text-align:center;font-size:15px;margin:4px 0}p,td{margin:2px 0}table{width:100%}hr{border-top:1px dashed #000}.c{text-align:center}.r{text-align:right}</style></head><body>' +
+  /* ---------- print: POS slip receipt (80mm) + A4 student profile ----------
+     Print uses a pop-up window (blocked on some phones) — every print also
+     has a Download button that saves the same page as a file, no pop-up. */
+  function receiptSlipHTML(rec, name) {
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt ' + esc(rec.ReceiptNo) + '</title><style>body{font-family:monospace;width:80mm;margin:0 auto;padding:8px;font-size:13px}h2{text-align:center;font-size:15px;margin:4px 0}p,td{margin:2px 0}table{width:100%}hr{border-top:1px dashed #000}.c{text-align:center}.r{text-align:right}</style></head><body>' +
       '<h2>' + esc(settings.MadrasaName || 'Madrasa') + '</h2><p class="c">' + esc(settings.Address || '') + '</p><hr>' +
       '<table><tr><td>Receipt</td><td class="r"><b>' + esc(rec.ReceiptNo) + '</b></td></tr>' +
       '<tr><td>Date</td><td class="r">' + esc(rec.Date) + '</td></tr>' +
       '<tr><td>Fund</td><td class="r">' + esc(rec.Fund) + '</td></tr>' +
       (name ? '<tr><td>Student</td><td class="r">' + esc(name) + '</td></tr>' : '') +
       '<tr><td>Purpose</td><td class="r">' + esc(rec.Purpose) + '</td></tr></table><hr>' +
-      '<p><b>Amount: ' + rs(rec.Amount) + '</b></p><p class="c">' + esc(t('thankYou')) + '</p>' +
-      '<script>window.onload=function(){window.print();}</script></body></html>');
+      '<p><b>Amount: ' + rs(rec.Amount) + '</b></p><p class="c">Thank you</p></body></html>';
+  }
+  window.printReceiptSlip = function (receiptNo) {
+    var rec = receipts.filter(function (r) { return String(r.ReceiptNo) === String(receiptNo); })[0]; if (!rec) return;
+    var name = rec.StudentID ? studentName(rec.StudentID) : '';
+    var w = window.open('', '_blank', 'width=340,height=640');
+    if (!w) { alert('Pop-up was blocked — use Download slip instead.'); return; }
+    w.document.write(receiptSlipHTML(rec, name) + '<script>window.onload=function(){window.print();}</script>');
     w.document.close();
   };
-  window.printStudentProfile = function () {
-    var s = students.filter(function (x) { return String(x.StudentID) === String(profileStudentId); })[0]; if (!s) return;
+  window.downloadReceiptSlip = function (receiptNo) {
+    var rec = receipts.filter(function (r) { return String(r.ReceiptNo) === String(receiptNo); })[0]; if (!rec) return;
+    var name = rec.StudentID ? studentName(rec.StudentID) : '';
+    var blob = new Blob([receiptSlipHTML(rec, name)], { type: 'text/html' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'receipt-' + rec.ReceiptNo + '.html'; a.click();
+  };
+  function profileHTML(s) {
     var rows = ledger.filter(function (r) { return String(r.StudentID) === String(s.StudentID); });
     var att = attendance.filter(function (a) { return String(a.StudentID) === String(s.StudentID); });
     var sab = sabaq.filter(function (r) { return String(r.StudentID) === String(s.StudentID); }).slice(-10).reverse();
-    var w = window.open('', '_blank', 'width=820,height=900');
-    if (!w) { alert('Please allow pop-ups to print.'); return; }
-    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(s.Name) + '</title><style>body{font-family:Arial,sans-serif;margin:20px;font-size:14px}h1{font-size:20px}h2{font-size:15px;margin-top:18px;border-bottom:1px solid #999;padding-bottom:4px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:5px 8px;text-align:left}img{max-width:120px;max-height:120px}</style></head><body>' +
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(s.Name) + '</title><style>body{font-family:Arial,sans-serif;margin:20px;font-size:14px}h1{font-size:20px}h2{font-size:15px;margin-top:18px;border-bottom:1px solid #999;padding-bottom:4px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:5px 8px;text-align:left}img{max-width:120px;max-height:120px}</style></head><body>' +
       '<h1>' + esc(settings.MadrasaName || 'Madrasa') + ' — ' + esc(s.Name) + '</h1>' +
       (s.PhotoURL ? '<img src="' + esc(s.PhotoURL) + '" alt="">' : '') +
       '<table><tr><td>Father</td><td>' + esc(s.FatherName) + '</td></tr><tr><td>Class</td><td>' + esc(s.Class) + '</td></tr>' +
@@ -1655,9 +1490,19 @@
       '<h2>Ledger</h2><table><tr><th>Date</th><th>Type</th><th>Amount</th><th>Receipt</th></tr>' +
       (rows.length ? rows.slice().reverse().map(function (r) { return '<tr><td>' + esc(r.Date) + '</td><td>' + esc(r.Type) + '</td><td>' + rs(r.Amount) + '</td><td>' + esc(r.ReceiptNo) + '</td></tr>'; }).join('') : '<tr><td colspan="4">No entries</td></tr>') + '</table>' +
       '<h2>Attendance (recorded)</h2><p>' + (att.length ? att.map(function (a) { return a.Date + ' (' + a.Session + '): ' + a.Status; }).join(' · ') : 'No record') + '</p>' +
-      '<h2>Sabaq — recent</h2><p>' + (sab.length ? sab.map(function (r) { return r.Date + ' — ' + (r.Sabaq || '—') + ' (' + (r.Recited || 'Yes') + ')'; }).join('<br>') : '—') + '</p>' +
-      '<script>window.onload=function(){window.print();}</script></body></html>');
+      '<h2>Sabaq — recent</h2><p>' + (sab.length ? sab.map(function (r) { return r.Date + ' — ' + (r.Sabaq || '—') + ' (' + (r.Recited || 'Yes') + ')'; }).join('<br>') : '—') + '</p></body></html>';
+  }
+  window.printStudentProfile = function () {
+    var s = students.filter(function (x) { return String(x.StudentID) === String(profileStudentId); })[0]; if (!s) return;
+    var w = window.open('', '_blank', 'width=820,height=900');
+    if (!w) { alert('Pop-up was blocked — use Download profile (HTML) instead.'); return; }
+    w.document.write(profileHTML(s) + '<script>window.onload=function(){window.print();}</script>');
     w.document.close();
+  };
+  window.downloadStudentProfileHTML = function () {
+    var s = students.filter(function (x) { return String(x.StudentID) === String(profileStudentId); })[0]; if (!s) return;
+    var blob = new Blob([profileHTML(s)], { type: 'text/html' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'student-' + s.StudentID + '-profile.html'; a.click();
   };
   window.downloadStudentProfile = function () {
     var s = students.filter(function (x) { return String(x.StudentID) === String(profileStudentId); })[0]; if (!s) return;
@@ -1673,32 +1518,45 @@
     alert(text);
   };
 
-  /* ---------- backup: download whole dataset / upload to restore ---------- */
-  window.downloadBackupUI = function () {
-    if (!requireRole('exportBackup')) return;
-    MMLocal.apiPost('exportBackup', { role: role() }).then(function (d) {
-      if (d && d.ok && d.backup) {
-        var blob = new Blob([JSON.stringify(d.backup, null, 2)], { type: 'application/json' });
-        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'madrasa-masjid-backup-' + today() + '.json'; a.click();
-      } else alert((d && d.error) || 'Backup failed.');
-    }).catch(function () { alert('Backup failed — check connection.'); });
+  /* ---------- messages: Qari -> Admin (saved in the Sheet) ---------- */
+  window.sendMessageUI = function (e) {
+    e.preventDefault();
+    if (!currentUser) return;
+    var text = ($('msgText') && $('msgText').value.trim()) || ($('myMsgText') && $('myMsgText').value.trim());
+    if (!text) { alert('Write your message first.'); return; }
+    var m = { MessageID: 'MSG-' + Date.now(), Date: today(), FromUserID: currentUser.UserID, FromName: currentUser.Name, ToRole: 'Admin', Message: text, Status: 'Unread', Reply: '', RepliedBy: '', ReplyDate: '' };
+    messages.unshift(m); MMLocal.saveLocal('messages', messages);
+    MMLocal.queueChange('sendMessage', { message: m, role: role() });
+    if ($('msgText')) $('msgText').value = '';
+    if ($('myMsgText')) $('myMsgText').value = '';
+    renderMessages(); refreshSyncPill();
+    alert('Message sent to the Admin.');
   };
-  window.uploadBackupUI = function (input) {
-    if (!requireRole('restoreBackup')) return;
-    var f = input.files && input.files[0]; if (!f) return;
-    var r = new FileReader();
-    r.onload = function () {
-      try {
-        var b = JSON.parse(r.result);
-        if (!b.tabs) { alert('Invalid backup file.'); return; }
-        if (!confirm(t('backupRestoreConfirm'))) return;
-        MMLocal.apiPost('restoreBackup', { backup: b, role: role() }).then(function (d) {
-          if (d && d.ok) { alert(t('backupRestored')); refreshFromServer(); }
-          else alert((d && d.error) || 'Restore failed.');
-        }).catch(function () { alert('Restore failed — check connection.'); });
-      } catch (e) { alert('Invalid backup file.'); }
-    };
-    r.readAsText(f);
+  window.renderMessages = function () {
+    var el = $('messagesList'); if (!el) return;
+    var list = role() === 'Admin' ? messages : messages.filter(function (m) { return String(m.FromUserID) === String(currentUser.UserID); });
+    el.innerHTML = list.length ? list.map(function (m) {
+      return '<div class="panel msg"><p><b>' + esc(m.FromName) + '</b> · ' + esc(m.Date) + ' · <span class="badge ' + (m.Status === 'Unread' ? 'unpaid' : 'paid') + '">' + esc(m.Status) + '</span></p><p>' + esc(m.Message) + '</p>' +
+        (m.Reply ? '<p><b>Admin reply (' + esc(m.ReplyDate || '') + '):</b> ' + esc(m.Reply) + '</p>' : '') +
+        (role() === 'Admin' ? '<button class="btn small secondary" onclick="replyMessageUI(\'' + esc(m.MessageID) + '\')">Reply</button> <button class="btn small secondary" onclick="resolveMessageUI(\'' + esc(m.MessageID) + '\')">Mark as read</button>' : '') + '</div>';
+    }).join('') : '<div class="empty">No messages yet.</div>';
+    var cnt = $('msgUnreadCount'); if (cnt) cnt.textContent = role() === 'Admin' ? ('Unread: ' + messages.filter(function (m) { return m.Status === 'Unread'; }).length) : '';
+  };
+  window.resolveMessageUI = function (id) {
+    if (!requireRole('resolveMessage')) return;
+    var m = messages.filter(function (x) { return String(x.MessageID) === String(id); })[0]; if (!m) return;
+    m.Status = 'Read'; MMLocal.saveLocal('messages', messages);
+    MMLocal.queueChange('resolveMessage', { messageId: id, role: role() });
+    renderMessages(); refreshSyncPill();
+  };
+  window.replyMessageUI = function (id) {
+    if (!requireRole('replyMessage')) return;
+    var r = prompt('Reply to this message:'); if (!r || !r.trim()) return;
+    var m = messages.filter(function (x) { return String(x.MessageID) === String(id); })[0]; if (!m) return;
+    m.Reply = r.trim(); m.RepliedBy = currentUser ? currentUser.Name : ''; m.ReplyDate = today(); m.Status = 'Read';
+    MMLocal.saveLocal('messages', messages);
+    MMLocal.queueChange('replyMessage', { messageId: id, reply: m.Reply, repliedBy: m.RepliedBy, replyDate: m.ReplyDate, role: role() });
+    renderMessages(); refreshSyncPill();
   };
 
   /* ---------- Admin changes his own password ---------- */
@@ -1757,7 +1615,7 @@
     $('setApiUrl').value = MMLocal.getApiUrl();
     $('setImgbb').value = MMImage.getKey() || '';
     fillSettingsForm(); applyBranding(); fillClassSelects(); fillInChargeSelect(); toggleUserTeacher();
-    renderDashboard(); renderStudents(); renderTeachers(); renderFees(); renderAccounts(); renderReceipts(); fillFeeStudents(); fillLedgerStudents(); fillSabaqStudents(); renderNotifLog(); renderHistory(); renderUsers(); renderItems(); renderClasses(); renderSabaqReport(); refreshSyncPill();
+    renderDashboard(); renderStudents(); renderTeachers(); renderFees(); renderAccounts(); renderReceipts(); fillFeeStudents(); fillLedgerStudents(); fillSabaqStudents(); renderNotifLog(); renderHistory(); renderUsers(); renderItems(); renderClasses(); renderSabaqReport(); renderMessages(); refreshSyncPill();
     refreshFromServer();
     if (currentUser) { showApp(); if (currentUser.Role === 'Qari') showSection('my-class'); } else showLogin();
   }
