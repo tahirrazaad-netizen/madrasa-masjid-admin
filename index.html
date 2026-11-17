@@ -54,6 +54,7 @@
       <button onclick="newEntry('item')" data-i18n="newItem">New Budget Item</button>
       <button onclick="newEntry('class')" data-i18n="newClass">New Class</button>
       <button onclick="newEntry('user')" data-i18n="newUser">New User</button>
+      <button onclick="newEntry('vehicle')" data-i18n="newVehicle">New Vehicle</button>
     </div>
   </div>
   <button class="btn secondary" id="langToggle" onclick="toggleLang()">اردو</button>
@@ -69,6 +70,7 @@
     <button data-section="my-class" onclick="showSection('my-class')" data-i18n="navMyClass">My Class</button>
     <button data-section="students" onclick="showSection('students')" data-i18n="navStudents">Students</button>
     <button data-section="teachers" onclick="showSection('teachers')" data-i18n="navTeachers">Teachers</button>
+    <button data-section="vehicles" onclick="showSection('vehicles')" data-i18n="navVehicles">Vehicles</button>
     <button data-section="attendance" onclick="showSection('attendance')" data-i18n="navAttendance">Attendance</button>
     <button data-section="sabaq" onclick="showSection('sabaq')" data-i18n="navSabaq">Sabaq &amp; Daily Report</button>
     <button data-section="fees" onclick="showSection('fees')" data-i18n="navFees">Fees</button>
@@ -131,7 +133,7 @@
     <section class="section" id="section-students">
       <h2 data-i18n="navStudents">Students</h2>
       <p class="hint" data-i18n="studentsHint">A student is never deleted — only the status changes: Current / Hifz Completed / Left. Click a name to open the profile.</p>
-      <div class="panel">
+      <div class="panel" id="studentFormPanel">
         <h3 id="studentFormTitle" data-i18n="addStudent">Add student</h3>
         <form id="studentForm" onsubmit="saveStudentUI(event)">
           <div class="grid">
@@ -219,7 +221,7 @@
     <section class="section" id="section-teachers">
       <h2 data-i18n="navTeachers">Teachers</h2>
       <p class="hint" data-i18n="teachersHint">A teacher is never deleted — only the status changes: Active / Left. Click a name to open the profile.</p>
-      <div class="panel">
+      <div class="panel" id="teacherFormPanel">
         <h3 data-i18n="addTeacher">Add teacher</h3>
         <form id="teacherForm" onsubmit="saveTeacherUI(event)">
           <div class="grid">
@@ -270,6 +272,23 @@
         <div class="att-list" id="attList"></div><br>
         <button class="btn" onclick="saveAttendanceUI()" data-i18n="saveAttendance">Save attendance</button>
         <span class="size-note" id="attSavedNote"></span>
+      </div>
+      <div class="panel" id="attRecordsPanel" style="display:none">
+        <h3 data-i18n="attRecordsTitle">Attendance records — correct (Admin only)</h3>
+        <p class="hint" data-i18n="attRecordsHint">Pick a date and session. To correct a mistake, change the status in the list — only the Admin can do this.</p>
+        <div class="grid">
+          <div><label data-i18n="fDate">Date</label><input id="attRecDate" type="date" onchange="renderAttRecords()"></div>
+          <div><label data-i18n="session">Session</label>
+            <select id="attRecSession" onchange="renderAttRecords()">
+              <option value="1st" data-i18n="session1">1st Session</option>
+              <option value="2nd" data-i18n="session2">2nd Session</option>
+              <option value="Night" data-i18n="sessionNight">Night Session</option>
+            </select></div>
+        </div><br>
+        <div class="table-wrap"><table>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thClass">Class</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
+          <tbody id="attRecordsList"></tbody>
+        </table></div>
       </div>
     </section>
 
@@ -324,6 +343,7 @@
         <h3 data-i18n="receiptTitle">Receipt — print it</h3>
         <div class="receipt" id="receiptView"></div><br>
         <button class="btn secondary no-print" onclick="window.print()" data-i18n="print">Print</button>
+        <button class="btn secondary no-print" onclick="printReceiptSlip(document.querySelector('#receiptView b') ? document.querySelector('#receiptView b').textContent : '')" data-i18n="printSlip">Print slip</button>
       </div>
       <div class="panel"><h3 data-i18n="feesListTitle">Fees list</h3><div class="table-wrap"><table>
         <thead><tr><th data-i18n="thReceipt">Receipt No.</th><th data-i18n="thDate">Date</th><th data-i18n="thName">Name</th><th data-i18n="thMonth">Month</th><th data-i18n="thAmount">Amount</th><th data-i18n="thStatus">Status</th></tr></thead>
@@ -369,6 +389,7 @@
             <div><label data-i18n="fAllocatedQ">Allocated to this item?</label><select id="txAllocated"><option value="">—</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
             <div><label data-i18n="fAllocated">Allocated amount (Rs)</label><input id="txAllocAmount" type="number" min="0" value="0"></div>
             <div><label data-i18n="fTeacher">Teacher — for salary / advance</label><select id="txTeacher"><option value="">—</option></select></div>
+            <div><label data-i18n="fVehicle">Vehicle — for vehicle expenses</label><select id="txVehicle"><option value="">—</option></select></div>
             <div><label data-i18n="fAmount">Amount (Rs) *</label><input id="txAmount" type="number" min="0" required></div>
             <div><label data-i18n="fDate">Date</label><input id="txDate" type="date"></div>
             <div class="full"><label data-i18n="fDesc">Description</label><input id="txDesc" placeholder="For what?"></div>
@@ -379,7 +400,7 @@
       <div class="panel"><div class="toolbar">
         <select id="txFilterFund" onchange="renderAccounts()"><option value="" data-i18n="bothFunds">Both funds</option><option value="Madrasa">Madrasa</option><option value="Masjid">Masjid</option></select>
       </div><div class="table-wrap"><table>
-        <thead><tr><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="fType">Type</th><th data-i18n="fCategory">Category</th><th data-i18n="thItem">Item</th><th data-i18n="fAllocatedQ">Allocated?</th><th data-i18n="thAmount">Amount</th><th data-i18n="fDesc">Description</th><th data-i18n="thReceipt">Receipt No.</th></tr></thead>
+        <thead><tr><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="fType">Type</th><th data-i18n="fCategory">Category</th><th data-i18n="thItem">Item</th><th data-i18n="fAllocatedQ">Allocated?</th><th data-i18n="thVehicle">Vehicle</th><th data-i18n="thAmount">Amount</th><th data-i18n="fDesc">Description</th><th data-i18n="thReceipt">Receipt No.</th></tr></thead>
         <tbody id="accountsTable"></tbody>
       </table></div></div>
     </section>
@@ -389,7 +410,7 @@
       <h2 data-i18n="navReceipts">Receipts</h2>
       <p class="hint" data-i18n="receiptsHint">Every transaction / fee receipt is saved here.</p>
       <div class="panel"><div class="table-wrap"><table>
-        <thead><tr><th data-i18n="thReceipt">Receipt No.</th><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="thAmount">Amount</th><th data-i18n="thPurpose">Purpose</th></tr></thead>
+        <thead><tr><th data-i18n="thReceipt">Receipt No.</th><th data-i18n="thDate">Date</th><th data-i18n="fFund">Fund</th><th data-i18n="thAmount">Amount</th><th data-i18n="thPurpose">Purpose</th><th data-i18n="thPrint">Print</th></tr></thead>
         <tbody id="receiptsTable"></tbody>
       </table></div></div>
     </section>
@@ -408,6 +429,32 @@
         <thead><tr><th data-i18n="thName">Name</th><th data-i18n="thFather">Father</th><th data-i18n="thFatherPhone">Father's phone</th><th data-i18n="thGuardianPhone">Guardian phone</th><th data-i18n="thLocation">Location</th><th data-i18n="thClass">Class</th><th data-i18n="thAdmission">Admission</th><th data-i18n="thStatus">Status</th></tr></thead>
         <tbody id="historyTable"></tbody>
       </table></div></div>
+    </section>
+
+    <!-- VEHICLES -->
+    <section class="section" id="section-vehicles">
+      <h2 data-i18n="vehiclesTitle">Vehicles</h2>
+      <p class="hint" data-i18n="vehiclesHint">Vehicle expenses are tracked separately from other expenses — pick a vehicle when adding a transaction.</p>
+      <div class="panel">
+        <h3 data-i18n="vehiclesTitle">Vehicles</h3>
+        <form id="vehicleForm" onsubmit="saveVehicleUI(event)">
+          <div class="grid">
+            <div><label data-i18n="vehicleNo">Vehicle number *</label><input id="vehNo" required placeholder="e.g. LHR-1234"></div>
+            <div><label data-i18n="vehicleType">Type</label><input id="vehType" placeholder="Van / Bus / Car"></div>
+            <div><label data-i18n="vehicleDriver">Driver</label><input id="vehDriver"></div>
+            <div><label data-i18n="vehicleRoute">Route</label><input id="vehRoute" placeholder="e.g. Khudian — Chunian"></div>
+            <div><label data-i18n="fStatus">Status</label><select id="vehStatus"><option value="Active">Active</option><option value="Closed">Closed</option></select></div>
+          </div><br>
+          <input type="hidden" id="vehId">
+          <button class="btn" type="submit" data-i18n="save">Save</button>
+          <button class="btn secondary" type="button" onclick="resetVehicleForm()" data-i18n="clear">Clear</button>
+        </form>
+        <br>
+        <div class="table-wrap"><table>
+          <thead><tr><th data-i18n="vehicleNo">Vehicle number</th><th data-i18n="vehicleType">Type</th><th data-i18n="vehicleDriver">Driver</th><th data-i18n="vehicleRoute">Route</th><th data-i18n="thStatus">Status</th><th data-i18n="vehicleExpenses">Vehicle expenses</th><th data-i18n="thAction">Action</th></tr></thead>
+          <tbody id="vehiclesTable"></tbody>
+        </table></div>
+      </div>
     </section>
 
     <!-- REPORTS & GRAPHS -->
@@ -485,6 +532,15 @@
             <div><label data-i18n="fPhone">Phone</label><input id="newUserPhone" dir="ltr"></div>
             <div><label data-i18n="fEmail">Email</label><input id="newUserEmail" type="email" dir="ltr" placeholder="name@example.com"></div>
           </div><br>
+          <input type="hidden" id="newUserId">
+          <div class="full" style="margin-top:8px">
+            <label data-i18n="permissionsTitle">Access permissions (Editor only)</label>
+            <p class="hint" data-i18n="permHint">Tick what this Editor may EDIT. Anything unticked is view-only.</p>
+            <label style="display:block;font-weight:400"><input type="checkbox" id="permStudentsEdit"> <span data-i18n="permStudents">Students — can edit</span></label>
+            <label style="display:block;font-weight:400"><input type="checkbox" id="permFeesEdit"> <span data-i18n="permFees">Fees — can edit</span></label>
+            <label style="display:block;font-weight:400"><input type="checkbox" id="permAccountsEdit"> <span data-i18n="permAccounts">Accounts — can edit</span></label>
+            <label style="display:block;font-weight:400"><input type="checkbox" id="permAttendanceEdit"> <span data-i18n="permAttendance">Attendance — can edit</span></label>
+          </div>
           <button class="btn" type="submit" data-i18n="createUser">Create user</button>
           <button class="btn secondary" type="button" onclick="genPasswordUI()" data-i18n="genPassword">Generate password</button>
         </form>
@@ -500,9 +556,25 @@
         </form>
         <br>
         <div class="table-wrap"><table>
-          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="username">Username</th><th data-i18n="fRole">Role</th><th data-i18n="fLinkedTeacher">Linked teacher</th><th data-i18n="thPhone">Phone</th><th data-i18n="fEmail">Email</th><th data-i18n="thVerified">Verified</th><th data-i18n="thStatus">Status</th><th data-i18n="thAction">Action</th></tr></thead>
+          <thead><tr><th data-i18n="thName">Name</th><th data-i18n="username">Username</th><th data-i18n="fRole">Role</th><th data-i18n="fLinkedTeacher">Linked teacher</th><th data-i18n="thPhone">Phone</th><th data-i18n="fEmail">Email</th><th data-i18n="thVerified">Verified</th><th data-i18n="thStatus">Status</th><th data-i18n="thPermissions">Permissions</th><th data-i18n="thAction">Action</th></tr></thead>
           <tbody id="usersTable"></tbody>
         </table></div>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="backupTitle">Backup — download / restore</h3>
+        <p class="hint" data-i18n="backupHint">Download the whole dataset (all tabs) as one file, and upload it back any time to restore it. Admin only.</p>
+        <button class="btn" onclick="downloadBackupUI()" data-i18n="downloadBackup">Download backup</button>
+        <label class="btn secondary" style="display:inline-block;cursor:pointer"><span data-i18n="uploadBackup">Upload backup (restore)</span><input type="file" accept="application/json,.json" style="display:none" onchange="uploadBackupUI(this)"></label>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="changeMyPassword">Change my password</h3>
+        <form onsubmit="changeMyPasswordUI(event)">
+          <div class="grid">
+            <div><label data-i18n="newPassword">New password</label><input id="myNewPass" type="password" required minlength="6"></div>
+            <div><label data-i18n="confirmPassword">Confirm new password</label><input id="myConfirmPass" type="password" required minlength="6"></div>
+          </div><br>
+          <button class="btn" type="submit" data-i18n="changeMyPassword">Change my password</button>
+        </form>
       </div>
       <div class="panel">
         <h3 data-i18n="localTitle">Local data (order.js)</h3>

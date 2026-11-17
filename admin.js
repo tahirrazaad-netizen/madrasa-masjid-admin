@@ -33,7 +33,7 @@
   // secure production auth — see SETUP-GUIDE.md.
 
   var students = [], teachers = [], fees = [], accounts = [], receipts = [], attendance = [];
-  var users = [], ledger = [], items = [], sabaq = [], classes = [];
+  var users = [], ledger = [], items = [], sabaq = [], classes = [], vehicles = [];
   var settings = {};
   var currentUser = null; // { UserID, Name, Role, Username, Phone, TeacherID }
   var attMarks = {};
@@ -108,6 +108,24 @@
       classesTitle: 'Classes — define class names & levels',
       classesHint: 'Define each class once, e.g. Qaida, Nazra, Hifz, Alim-e-Deen Level 1–8, Fazil. Each level is a separate class, so Alim-e-Deen Level 1 and Level 2 never mix.',
       fClassName: 'Class name *', fLevel: 'Level', fDesc: 'Description', saveClass: 'Save class',
+      navVehicles: 'Vehicles', newVehicle: 'New Vehicle',
+      attFinal: 'Attendance for this date and session is already marked and final. Only the Admin (Head Qari) can correct it.',
+      attAdminNoMark: 'Admin (Head Qari) monitors attendance but does not mark it. Attendance is marked by assistant Qaris.',
+      attTodayTitle: "Today's attendance", attRecordsTitle: 'Attendance records — correct (Admin only)',
+      attRecordsHint: 'Pick a date and session. To correct a mistake, change the status in the list — only the Admin can do this.',
+      vehiclesTitle: 'Vehicles', vehiclesHint: 'Vehicle expenses are tracked separately from other expenses — pick a vehicle when adding a transaction.',
+      vehicleNo: 'Vehicle number *', vehicleType: 'Type', vehicleDriver: 'Driver', vehicleRoute: 'Route',
+      vehicleExpenses: 'Vehicle expenses', noVehicles: 'No vehicles yet.', vehicleNoRequired: 'Vehicle number is required.',
+      fVehicle: 'Vehicle — for vehicle expenses', printSlip: 'Print slip', printProfile: 'Print profile',
+      downloadProfile: 'Save (download)', shareProfile: 'Share', copiedLabel: 'Copied to clipboard.',
+      backupTitle: 'Backup — download / restore', backupHint: 'Download the whole dataset (all tabs) as one file, and upload it back any time to restore it. Admin only.',
+      downloadBackup: 'Download backup', uploadBackup: 'Upload backup (restore)',
+      backupRestoreConfirm: 'Restore this backup? It will REPLACE all current data in the Sheet.', backupRestored: 'Backup restored.',
+      changeMyPassword: 'Change my password', newPassword: 'New password', confirmPassword: 'Confirm new password',
+      passwordChanged: 'Password changed.', passMin6: 'Password must be at least 6 characters.', passNoMatch: 'The two passwords do not match.',
+      permissionsTitle: 'Access permissions (Editor only)', permHint: 'Tick what this Editor may EDIT. Anything unticked is view-only.',
+      permStudents: 'Students — can edit', permFees: 'Fees — can edit', permAccounts: 'Accounts — can edit', permAttendance: 'Attendance — can edit',
+      fullAccess: 'Full Editor access', thPermissions: 'Permissions', thVehicle: 'Vehicle', thPrint: 'Print',
       connTitle: 'Connection', fApiUrl: 'Apps Script Web App URL (paste after deploying Code.gs)',
       fImgbb: 'ImgBB API Key (for hosting photos — free key at https://api.imgbb.com/)',
       saveSettings: 'Save settings', syncNow: 'Sync now',
@@ -200,7 +218,25 @@
       classesTitle: 'جماعتیں — نام اور درجے طے کریں',
       classesHint: 'ہر جماعت ایک بار طے کریں، مثلاً قاعدہ، ناظرہ، حفظ، عالم دین لیول 1 تا 8، فاضل۔ ہر لیول الگ جماعت ہے، اس لیے عالم دین لیول 1 اور لیول 2 کبھی نہیں ملیں گے۔',
       fClassName: 'جماعت کا نام *', fLevel: 'لیول', fDesc: 'تفصیل', saveClass: 'جماعت محفوظ کریں',
-      connTitle: 'کنکشن', fApiUrl: 'Apps Script Web App URL (Code.gs deploy کرنے کے بعد یہاں پیسٹ کریں)',
+
+      navVehicles: 'گاڑیاں', newVehicle: 'نئی گاڑی',
+      attFinal: 'اس تاریخ اور سیشن کی حاضری لگ چکی ہے اور فائنل ہے۔ صرف ایڈمن (ہیڈ قاری صاحب) درست کر سکتے ہیں۔',
+      attAdminNoMark: 'ایڈمن (ہیڈ قاری صاحب) حاضری دیکھتے ہیں، لگاتے نہیں۔ حاضری اسسٹنٹ قاری صاحب لگاتے ہیں۔',
+      attTodayTitle: 'آج کی حاضری', attRecordsTitle: 'حاضری کا ریکارڈ — درستی (صرف ایڈمن)',
+      attRecordsHint: 'تاریخ اور سیشن چنیں۔ غلطی درست کرنے کے لیے فہرست میں حیثیت بدلیں — یہ صرف ایڈمن کر سکتا ہے۔',
+      vehiclesTitle: 'گاڑیاں', vehiclesHint: 'گاڑیوں کے اخراجات دوسرے اخراجات سے الگ رکھے جاتے ہیں — لین دین شامل کرتے وقت گاڑی چنیں۔',
+      vehicleNo: 'گاڑی نمبر *', vehicleType: 'قسم', vehicleDriver: 'ڈرائیور', vehicleRoute: 'راستہ',
+      vehicleExpenses: 'گاڑی کے اخراجات', noVehicles: 'ابھی کوئی گاڑی نہیں۔', vehicleNoRequired: 'گاڑی نمبر ضروری ہے۔',
+      fVehicle: 'گاڑی — گاڑی کے خرچ کے لیے', printSlip: 'پرچی پرنٹ کریں', printProfile: 'پروفائل پرنٹ کریں',
+      downloadProfile: 'محفوظ کریں (ڈاؤن لوڈ)', shareProfile: 'شیئر کریں', copiedLabel: 'کاپی ہو گیا۔',
+      backupTitle: 'بیک اپ — ڈاؤن لوڈ / واپس لائیں', backupHint: 'پورا ڈیٹا ایک فائل میں ڈاؤن لوڈ کریں، اور جب چاہیں واپس اپ لوڈ کر کے بحال کریں۔ صرف ایڈمن۔',
+      downloadBackup: 'بیک اپ ڈاؤن لوڈ کریں', uploadBackup: 'بیک اپ اپ لوڈ کریں (بحال کریں)',
+      backupRestoreConfirm: 'کیا یہ بیک اپ بحال کریں؟ اس سے Sheet کا سارا موجودہ ڈیٹا بدل جائے گا۔', backupRestored: 'بیک اپ بحال ہو گیا۔',
+      changeMyPassword: 'اپنا پاس ورڈ بدلیں', newPassword: 'نیا پاس ورڈ', confirmPassword: 'نیا پاس ورڈ دوبارہ لکھیں',
+      passwordChanged: 'پاس ورڈ بدل گیا۔', passMin6: 'پاس ورڈ کم از کم 6 حروف کا ہو۔', passNoMatch: 'دونوں پاس ورڈ ایک جیسے نہیں۔',
+      permissionsTitle: 'رسائی کی اجازتیں (صرف ایڈیٹر کے لیے)', permHint: 'جو کچھ ایڈیٹر بدل سکے، اس پر نشان لگائیں۔ جس پر نشان نہیں، وہ صرف دیکھ سکے گا۔',
+      permStudents: 'طلبہ — بدل سکتا ہے', permFees: 'فیس — بدل سکتا ہے', permAccounts: 'اکاؤنٹس — بدل سکتا ہے', permAttendance: 'حاضری — بدل سکتا ہے',
+      fullAccess: 'مکمل ایڈیٹر رسائی', thPermissions: 'اجازتیں', thVehicle: 'گاڑی', thPrint: 'پرنٹ',      connTitle: 'کنکشن', fApiUrl: 'Apps Script Web App URL (Code.gs deploy کرنے کے بعد یہاں پیسٹ کریں)',
       fImgbb: 'ImgBB API Key (تصاویر ہوسٹ کرنے کے لیے)',
       saveSettings: 'سیٹنگز محفوظ کریں', syncNow: 'ابھی Sync کریں',
       usersTitle: 'یوزرز / رول — صرف ایڈمن',
@@ -275,11 +311,25 @@
   function studentName(id) { var s = students.find(function (x) { return String(x.StudentID) === String(id); }); return s ? s.Name : id; }
   function teacherName(id) { var t = teachers.find(function (x) { return String(x.TeacherID) === String(id); }); return t ? t.Name : id; }
   function role() { return currentUser ? currentUser.Role : 'Admin'; }
+  // v5 access rules: the Head Qari (Admin) monitors attendance but NEVER
+  // marks it — only assistant Qaris mark attendance. Editor has no
+  // attendance, settings or user rights, and per-user view/edit permissions
+  // (set by the Admin in Settings > Users) decide what an Editor may change.
   function can(action) {
-    if (role() === 'Admin') return true;
-    if (role() === 'Editor') return ['saveSettings', 'saveUser'].indexOf(action) === -1;
+    if (role() === 'Admin') return action !== 'saveAttendance';
+    if (role() === 'Editor') {
+      if (['saveSettings', 'saveUser', 'saveClass', 'saveAttendance', 'correctAttendance', 'saveVehicle', 'restoreBackup', 'exportBackup'].indexOf(action) !== -1) return false;
+      return permAllows(action);
+    }
     if (role() === 'Qari') return ['saveAttendance', 'saveSabaq'].indexOf(action) !== -1 || action.indexOf('get') === 0;
     return false;
+  }
+  function permAllows(action) {
+    var perms = currentUser && currentUser.Permissions ? String(currentUser.Permissions).split(',') : [];
+    if (!perms.length) return true; // no permissions set = full Editor access
+    var area = { saveStudent: 'students', saveTeacher: 'teachers', recordFee: 'fees', recordLedger: 'fees', recordTransaction: 'accounts', saveItem: 'accounts', saveSabaq: 'attendance' }[action];
+    if (!area) return true;
+    return perms.indexOf(area + ':edit') !== -1;
   }
   function requireRole(action) {
     if (!can(action)) { alert(t('notAllowed') + ' ' + role() + '.'); return false; }
@@ -318,7 +368,7 @@
     }
   };
   function loginSuccess(u) {
-    currentUser = { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone || '', Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '' };
+    currentUser = { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone || '', Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '', Permissions: u.Permissions || '' };
     try { sessionStorage.setItem('mm_v2_session', JSON.stringify(currentUser)); } catch (e) {}
     $('loginError').textContent = '';
     showApp();
@@ -379,7 +429,7 @@
   }
   function applyRole() {
     var r = role();
-    var hideFor = { Qari: ['dashboard', 'teachers', 'fees', 'accounts', 'receipts', 'settings', 'history', 'reports'], Editor: ['settings'] };
+    var hideFor = { Qari: ['dashboard', 'teachers', 'fees', 'accounts', 'receipts', 'settings', 'history', 'reports', 'vehicles'], Editor: ['settings'] };
     var hide = hideFor[r] || [];
     document.querySelectorAll('#sidebar button').forEach(function (b) {
       var show = hide.indexOf(b.dataset.section) === -1;
@@ -394,12 +444,17 @@
       var el = $(id); if (el) el.disabled = (r !== 'Admin');
     });
     var saveBtn = $('saveSettingsBtn'); if (saveBtn) saveBtn.style.display = (r === 'Admin') ? '' : 'none';
+    // Qari can view his children, mark attendance and record Sabaq — he
+    // cannot add anything else, so the add forms and the + New menu are hidden.
+    var isQari = r === 'Qari';
+    ['studentFormPanel', 'teacherFormPanel'].forEach(function (id) { var el = $(id); if (el) el.style.display = isQari ? 'none' : ''; });
+    var nmBtn = $('newMenuBtn'); if (nmBtn) nmBtn.style.display = isQari ? 'none' : '';
   }
 
   /* ---------- navigation ---------- */
   window.showSection = function (name) {
     if (name === 'settings' && role() !== 'Admin') { alert(t('settingsTitle')); return; }
-    if ((name === 'accounts' || name === 'fees' || name === 'receipts' || name === 'history' || name === 'reports' || name === 'dashboard' || name === 'teachers') && role() === 'Qari') { showSection('my-class'); return; }
+    if ((name === 'accounts' || name === 'fees' || name === 'receipts' || name === 'history' || name === 'reports' || name === 'dashboard' || name === 'teachers' || name === 'vehicles') && role() === 'Qari') { showSection('my-class'); return; }
     document.querySelectorAll('.section').forEach(function (el) { el.classList.remove('active'); });
     var sec = $('section-' + name);
     if (sec) sec.classList.add('active');
@@ -414,7 +469,8 @@
     if (name === 'reports') renderReports();
     if (name === 'sabaq') { renderSabaqReport(); fillSabaqStudents(); }
     if (name === 'settings') { renderUsers(); renderClasses(); }
-    if (name === 'attendance') renderAttendanceList();
+    if (name === 'attendance') { renderAttendanceList(); renderAttRecords(); }
+    if (name === 'vehicles') { renderVehicles(); fillVehicleSelect(); }
   };
 
   /* ---------- sync status pill ---------- */
@@ -500,12 +556,14 @@
       if (u.ResetCode === undefined) u.ResetCode = '';
       if (u.ResetExpiry === undefined) u.ResetExpiry = '';
       if (u.TeacherID === undefined) u.TeacherID = '';
+      if (u.Permissions === undefined) u.Permissions = '';
     });
     ledger = MMLocal.getLocal('ledger');
     items = MMLocal.getLocal('items');
     sabaq = MMLocal.getLocal('sabaq');
     classes = MMLocal.getLocal('classes') || [];
     if (!classes.length) classes = defaultClassesLocal();
+    vehicles = MMLocal.getLocal('vehicles') || [];
     loadSettingsLocal();
   }
   function defaultClassesLocal() {
@@ -558,6 +616,8 @@
     MMLocal.apiGet('getClasses').then(function (d) { if (d.classes && d.classes.length) { classes = d.classes; MMLocal.saveLocal('classes', classes); fillClassSelects(); renderClasses(); } }).catch(function () {});
     MMLocal.apiGet('getSabaq').then(function (d) { if (d.sabaq) { sabaq = d.sabaq; MMLocal.saveLocal('sabaq', sabaq); } }).catch(function () {});
     MMLocal.apiGet('getAttendance').then(function (d) { if (d.attendance) { attendance = d.attendance; MMLocal.saveLocal('attendance', attendance); renderDashboard(); } }).catch(function () {});
+    MMLocal.apiGet('getVehicles').then(function (d) { if (d.vehicles) { vehicles = d.vehicles; MMLocal.saveLocal('vehicles', vehicles); renderVehicles(); } }).catch(function () {});
+    MMLocal.apiGet('getLedger').then(function (d) { if (d.ledger) { ledger = d.ledger; MMLocal.saveLocal('ledger', ledger); } }).catch(function () {});
   }
 
   /* ---------- dashboard ---------- */
@@ -577,9 +637,13 @@
       '<div class="card masjid"><div class="label">' + t('Masjid balance') + '</div><div class="value green">' + rs(d.masjidBalance) + '</div></div>' +
       card(t('Fees collected this month'), rs(d.feesCollectedThisMonth), 'green') +
       card(t('Fees pending'), d.feesPendingCount + ' ' + t('students') + ' · ' + rs(d.feesPendingAmount), 'amber');
-    var att = attendance.filter(function (a) { return a.Date === today(); });
-    $('dashAttendance').textContent = att.length
-      ? att.map(function (a) { return a.Date + ' · ' + a.Session + ' · ' + (a.StudentID === 'SUMMARY' ? a.Status : a.StudentID + ' — ' + a.Status); }).join('\n')
+    // Today's attendance — totals from the SUMMARY rows (present / arrived / left).
+    var summaries = attendance.filter(function (a) { return a.Date === today() && a.StudentID === 'SUMMARY'; });
+    var tot = { present: 0, absent: 0, leave: 0 };
+    summaries.forEach(function (s) { var m = String(s.Status).match(/Present:\s*(\d+).*Absent:\s*(\d+).*Leave:\s*(\d+)/); if (m) { tot.present += +m[1]; tot.absent += +m[2]; tot.leave += +m[3]; } });
+    $('dashAttendance').textContent = summaries.length
+      ? t('attTodayTitle') + ' — ' + t('present') + ': ' + tot.present + ' · ' + t('absent') + ': ' + tot.absent + ' · ' + t('leave') + ': ' + tot.leave + '\n' +
+        summaries.map(function (s) { return s.Session + ' — ' + s.Status + ' (' + (s.MarkedBy || '') + ')'; }).join('\n')
       : t('No attendance recorded today yet.');
     var hc = $('dashHistory');
     if (hc) hc.textContent = t('Total joined ever') + ': ' + d.totalJoinedEver + ' · ' + t('Current students') + ': ' + d.currentStudents + ' · ' + t('Hifz completed') + ': ' + d.hifzCompleted + ' · ' + t('Left') + ': ' + d.leftStudents + ' · ' + t('Teachers active') + ': ' + d.teachersActive + ' / ' + d.teachersLeft + ' ' + t('Left') + '.';
@@ -644,17 +708,26 @@
       return (!fs || s.Status === fs) && (!fc || s.Class === fc) &&
         (!q || (s.Name + ' ' + s.FatherName + ' ' + s.Class + ' ' + (s.Address || '')).toLowerCase().indexOf(q) !== -1);
     });
-    $('studentsTable').innerHTML = rows.length ? rows.map(function (s) {
+    // Grouped by class, then by name. Qari sees Profile only — no Edit/Status.
+    rows.sort(function (a, b) { return String(a.Class).localeCompare(String(b.Class)) || String(a.Name).localeCompare(String(b.Name)); });
+    var isQ = role() === 'Qari';
+    var html = '', lastClass = null;
+    rows.forEach(function (s) {
+      if (s.Class !== lastClass) {
+        lastClass = s.Class;
+        html += '<tr class="group-row"><td colspan="8">' + esc(cls(s.Class)) + ' — ' + rows.filter(function (x) { return x.Class === s.Class; }).length + ' ' + t('students') + '</td></tr>';
+      }
       var sessions = [s.Session1 === 'yes' ? '1st' : '', s.Session2 === 'yes' ? '2nd' : '', s.NightSession === 'yes' ? 'Night' : ''].filter(Boolean).join(', ') || '—';
       var adm = String(s.AdmissionFeePaid) === 'Yes' ? '<span class="badge paid">' + t('Admission received') + ' ✓</span>' : '<span class="badge unpaid">' + t('Admission pending') + ' ' + rs(s.AdmissionFeeAmount) + '</span>';
-      return '<tr><td>' + (s.PhotoURL ? '<img src="' + esc(s.PhotoURL) + '" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-inline-end:6px" alt="">' : '') + esc(s.Name) + '</td>' +
+      html += '<tr><td>' + (s.PhotoURL ? '<img src="' + esc(s.PhotoURL) + '" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-inline-end:6px" alt="">' : '') + esc(s.Name) + '</td>' +
         '<td>' + esc(s.FatherName) + '</td><td>' + esc(s.Class) + '</td><td>' + sessions + '</td><td>' + rs(s.MonthlyFee) + '</td>' +
         '<td>' + adm + '</td>' +
         '<td><span class="badge ' + (s.Status === 'Current' ? 'current' : s.Status === 'HifzCompleted' ? 'hifz' : 'left') + '">' + esc(s.Status) + '</span></td>' +
-        '<td><button class="btn small secondary" onclick="showStudentProfile(\'' + esc(s.StudentID) + '\')">' + t('profile') + '</button> ' +
-        '<button class="btn small secondary" onclick="editStudent(\'' + esc(s.StudentID) + '\')">' + t('edit') + '</button> ' +
-        '<button class="btn small secondary" onclick="changeStudentStatus(\'' + esc(s.StudentID) + '\')">' + t('statusBtn') + '</button></td></tr>';
-    }).join('') : '<tr><td colspan="8" class="empty">' + t('No students found — add one above.') + '</td></tr>';
+        '<td><button class="btn small secondary" onclick="showStudentProfile(\'' + esc(s.StudentID) + '\')">' + t('profile') + '</button>' +
+        (isQ ? '' : ' <button class="btn small secondary" onclick="editStudent(\'' + esc(s.StudentID) + '\')">' + t('edit') + '</button> ' +
+        '<button class="btn small secondary" onclick="changeStudentStatus(\'' + esc(s.StudentID) + '\')">' + t('statusBtn') + '</button>') + '</td></tr>';
+    });
+    $('studentsTable').innerHTML = rows.length ? html : '<tr><td colspan="8" class="empty">' + t('No students found — add one above.') + '</td></tr>';
   };
 
   window.editStudent = function (id) {
@@ -755,7 +828,11 @@
       '<div class="table-wrap"><table><thead><tr><th>' + t('thDate') + '</th><th>' + t('fType') + '</th><th>' + t('thAmount') + '</th><th>' + t('fMethod') + '</th><th>' + t('thReceipt') + '</th><th>' + t('fNote') + '</th></tr></thead><tbody>' +
       (rows.length ? rows.slice().reverse().map(function (r) { return '<tr><td>' + esc(r.Date) + '</td><td>' + esc(r.Type) + '</td><td>' + rs(r.Amount) + '</td><td>' + esc(r.Method) + '</td><td>' + esc(r.ReceiptNo) + '</td><td>' + esc(r.Note) + '</td></tr>'; }).join('') : '<tr><td colspan="6" class="empty">' + t('No ledger entries yet.') + '</td></tr>') +
       '</tbody></table></div>' +
-      '<h4>' + t('sabaqRecent') + '</h4><div class="log">' + (sabaqRows.length ? sabaqRows.map(function (r) { return r.Date + ' — ' + r.Sabaq + ' (' + (r.Amount || '') + ') ' + (r.TeacherNote || ''); }).join('\n') : '—') + '</div>';
+      '<h4>' + t('sabaqRecent') + '</h4><div class="log">' + (sabaqRows.length ? sabaqRows.map(function (r) { return r.Date + ' — ' + r.Sabaq + ' (' + (r.Amount || '') + ') ' + (r.TeacherNote || ''); }).join('\n') : '—') + '</div>' +
+      '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn small" onclick="printStudentProfile()">' + t('printProfile') + '</button>' +
+      '<button class="btn small secondary" onclick="downloadStudentProfile()">' + t('downloadProfile') + '</button>' +
+      '<button class="btn small secondary" onclick="shareStudentProfile()">' + t('shareProfile') + '</button></div>';
     var sel = $('ledgerStudent'); if (sel) sel.value = s.StudentID;
     renderAttCalendar();
     renderSabaqHistory();
@@ -940,6 +1017,7 @@
     }).join('') : '<div class="empty">' + t('No students in this session.') + '</div>';
   };
   window.toggleAtt = function (id, kind, btn) {
+    if (role() === 'Admin') { alert(t('attAdminNoMark')); return; }
     var row = $('att-' + id);
     if (attMarks[id] === kind) { delete attMarks[id]; }
     else attMarks[id] = kind;
@@ -956,6 +1034,10 @@
     if (!attSessionList.length) { alert(t('showListFirst')); return; }
     var date = $('attDate').value || today();
     var session = $('attSession').value;
+    // Finalised once marked: a second save is refused — only the Admin
+    // (Head Qari) can correct it from the records panel below.
+    var already = attendance.filter(function (a) { return a.Date === date && a.Session === session && a.StudentID === 'SUMMARY'; })[0];
+    if (already) { alert(t('attFinal')); return; }
     var absent = [], leave = [];
     Object.keys(attMarks).forEach(function (id) { if (attMarks[id] === 'Absent') absent.push(id); else leave.push(id); });
     var present = attSessionList.length - absent.length - leave.length;
@@ -966,6 +1048,48 @@
     MMLocal.queueChange('saveAttendance', { date: date, session: session, markedBy: $('attBy').value || (currentUser ? currentUser.Name : ''), absent: absent, leave: leave, totalInSession: attSessionList.length, role: role() });
     $('attSavedNote').textContent = t('saved') + ' — ' + t('present') + ': ' + present + ' · ' + t('absent') + ': ' + absent.length + ' · ' + t('leave') + ': ' + leave.length;
     renderDashboard(); refreshSyncPill();
+  };
+  /* ---------- attendance records — Admin-only correction ---------- */
+  window.renderAttRecords = function () {
+    var panel = $('attRecordsPanel'); if (!panel) return;
+    var isAdmin = role() === 'Admin';
+    panel.style.display = isAdmin ? '' : 'none';
+    if (!isAdmin) return;
+    var dEl = $('attRecDate'), sEl = $('attRecSession');
+    if (dEl && !dEl.value) dEl.value = today();
+    if (sEl && !sEl.value) sEl.value = '1st';
+    var date = dEl.value, session = sEl.value;
+    var list = students.filter(function (s) { return s.Status === 'Current' && (session === '1st' ? s.Session1 === 'yes' : session === '2nd' ? s.Session2 === 'yes' : s.NightSession === 'yes'); });
+    $('attRecordsList').innerHTML = list.length ? list.map(function (s) {
+      var row = attendance.filter(function (a) { return a.Date === date && a.Session === session && String(a.StudentID) === String(s.StudentID); })[0];
+      var st = row ? row.Status : 'Present';
+      return '<tr><td>' + esc(s.Name) + '</td><td>' + esc(cls(s.Class)) + '</td><td>' + st + '</td><td><select onchange="correctAttendanceUI(\'' + esc(s.StudentID) + '\', this.value)">' +
+        '<option value="Present"' + (st === 'Present' ? ' selected' : '') + '>Present</option>' +
+        '<option value="Absent"' + (st === 'Absent' ? ' selected' : '') + '>Absent</option>' +
+        '<option value="Leave"' + (st === 'Leave' ? ' selected' : '') + '>Leave</option></select></td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">' + t('No students in this session.') + '</td></tr>';
+  };
+  window.correctAttendanceUI = function (studentId, status) {
+    if (!requireRole('correctAttendance')) return;
+    var date = ($('attRecDate') && $('attRecDate').value) || today();
+    var session = ($('attRecSession') && $('attRecSession').value) || '1st';
+    var i = -1;
+    attendance.forEach(function (a, idx) { if (a.Date === date && a.Session === session && String(a.StudentID) === String(studentId)) i = idx; });
+    if (status === 'Present') { if (i !== -1) attendance.splice(i, 1); }
+    else if (i !== -1) attendance[i].Status = status;
+    else attendance.push({ Date: date, Session: session, StudentID: studentId, Status: status, MarkedBy: currentUser ? currentUser.Name : '' });
+    var rows = attendance.filter(function (a) { return a.Date === date && a.Session === session && a.StudentID !== 'SUMMARY'; });
+    var absent = rows.filter(function (a) { return a.Status === 'Absent'; }).length;
+    var leave = rows.filter(function (a) { return a.Status === 'Leave'; }).length;
+    var total = students.filter(function (s) { return s.Status === 'Current' && (session === '1st' ? s.Session1 === 'yes' : session === '2nd' ? s.Session2 === 'yes' : s.NightSession === 'yes'); }).length;
+    var present = Math.max(0, total - absent - leave);
+    var sum = attendance.filter(function (a) { return a.Date === date && a.Session === session && a.StudentID === 'SUMMARY'; })[0];
+    var summary = 'Present: ' + present + ' | Absent: ' + absent + ' | Leave: ' + leave;
+    if (sum) sum.Status = summary;
+    else attendance.push({ Date: date, Session: session, StudentID: 'SUMMARY', Status: summary, MarkedBy: currentUser ? currentUser.Name : '' });
+    MMLocal.saveLocal('attendance', attendance);
+    MMLocal.queueChange('correctAttendance', { date: date, session: session, studentId: studentId, status: status, markedBy: currentUser ? currentUser.Name : '', role: role() });
+    renderAttRecords(); renderDashboard(); refreshSyncPill();
   };
   window.saveSabaqUI = function (e) {
     e.preventDefault();
@@ -1068,10 +1192,10 @@
   window.recordTransactionUI = function (e) {
     e.preventDefault();
     if (!requireRole('recordTransaction')) return;
-    var tx = { fund: $('txFund').value, type: $('txType').value, category: $('txCategory').value.trim(), item: $('txItem') ? $('txItem').value.trim() : '', allocated: $('txAllocated') ? $('txAllocated').value : '', allocatedAmount: $('txAllocAmount') ? Number($('txAllocAmount').value) || 0 : 0, amount: Number($('txAmount').value) || 0, description: $('txDesc').value.trim(), date: $('txDate').value || today(), receiptNo: '', enteredBy: currentUser ? currentUser.Name : '', teacherId: $('txTeacher') ? $('txTeacher').value : '' };
+    var tx = { fund: $('txFund').value, type: $('txType').value, category: $('txCategory').value.trim(), item: $('txItem') ? $('txItem').value.trim() : '', allocated: $('txAllocated') ? $('txAllocated').value : '', allocatedAmount: $('txAllocAmount') ? Number($('txAllocAmount').value) || 0 : 0, amount: Number($('txAmount').value) || 0, description: $('txDesc').value.trim(), date: $('txDate').value || today(), receiptNo: '', enteredBy: currentUser ? currentUser.Name : '', teacherId: $('txTeacher') ? $('txTeacher').value : '', vehicleId: $('txVehicle') ? $('txVehicle').value : '' };
     if (!tx.amount) { alert(t('amountRequired')); return; }
     if (tx.type === 'Income') tx.receiptNo = nextReceiptNoLocal();
-    accounts.push({ Date: tx.date, Fund: tx.fund, Type: tx.type, Category: tx.category, Item: tx.item, Allocated: tx.allocated, AllocatedAmount: tx.allocatedAmount, SpentAmount: tx.type === 'Expense' ? tx.amount : 0, Amount: tx.amount, Description: tx.description, ReceiptNo: tx.receiptNo, EnteredBy: tx.enteredBy, TeacherID: tx.teacherId });
+    accounts.push({ Date: tx.date, Fund: tx.fund, Type: tx.type, Category: tx.category, Item: tx.item, Allocated: tx.allocated, AllocatedAmount: tx.allocatedAmount, SpentAmount: tx.type === 'Expense' ? tx.amount : 0, Amount: tx.amount, Description: tx.description, ReceiptNo: tx.receiptNo, EnteredBy: tx.enteredBy, TeacherID: tx.teacherId, VehicleID: tx.vehicleId });
     MMLocal.saveLocal('accounts', accounts);
     if (tx.receiptNo) { receipts.push({ ReceiptNo: tx.receiptNo, Date: tx.date, Fund: tx.fund, StudentID: '', TeacherID: tx.teacherId, Amount: tx.amount, Purpose: tx.category + ' — ' + tx.description }); MMLocal.saveLocal('receipts', receipts); }
     if (tx.type === 'Expense' && tx.item) {
@@ -1091,9 +1215,10 @@
     $('balMadrasa').textContent = rs(bal.Madrasa || 0);
     $('balMasjid').textContent = rs(bal.Masjid || 0);
     $('accountsTable').innerHTML = rows.length ? rows.slice().reverse().map(function (a) {
-      return '<tr><td>' + esc(a.Date) + '</td><td>' + esc(a.Fund) + '</td><td>' + esc(a.Type) + '</td><td>' + esc(a.Category) + '</td><td>' + esc(a.Item || '—') + '</td><td>' + esc(a.Allocated || '—') + '</td><td>' + rs(a.Amount) + '</td><td>' + esc(a.Description) + '</td><td>' + esc(a.ReceiptNo) + '</td></tr>';
-    }).join('') : '<tr><td colspan="9" class="empty">' + t('No transactions yet.') + '</td></tr>';
+      return '<tr><td>' + esc(a.Date) + '</td><td>' + esc(a.Fund) + '</td><td>' + esc(a.Type) + '</td><td>' + esc(a.Category) + '</td><td>' + esc(a.Item || '—') + '</td><td>' + esc(a.Allocated || '—') + '</td><td>' + esc(vehicleNo(a.VehicleID)) + '</td><td>' + rs(a.Amount) + '</td><td>' + esc(a.Description) + '</td><td>' + esc(a.ReceiptNo) + '</td></tr>';
+    }).join('') : '<tr><td colspan="10" class="empty">' + t('No transactions yet.') + '</td></tr>';
     var ts = $('txTeacher'); if (ts) ts.innerHTML = '<option value="">—</option>' + teachers.map(function (t) { return '<option value="' + esc(t.TeacherID) + '">' + esc(t.Name) + '</option>'; }).join('');
+    fillVehicleSelect();
   };
   window.saveItemUI = function (e) {
     e.preventDefault();
@@ -1116,8 +1241,9 @@
   /* ---------- receipts ---------- */
   window.renderReceipts = function () {
     $('receiptsTable').innerHTML = receipts.length ? receipts.slice().reverse().map(function (r) {
-      return '<tr><td>' + esc(r.ReceiptNo) + '</td><td>' + esc(r.Date) + '</td><td>' + esc(r.Fund) + '</td><td>' + rs(r.Amount) + '</td><td>' + esc(r.Purpose) + '</td></tr>';
-    }).join('') : '<tr><td colspan="5" class="empty">' + t('No receipts yet.') + '</td></tr>';
+      return '<tr><td>' + esc(r.ReceiptNo) + '</td><td>' + esc(r.Date) + '</td><td>' + esc(r.Fund) + '</td><td>' + rs(r.Amount) + '</td><td>' + esc(r.Purpose) + '</td>' +
+        '<td><button class="btn small secondary" onclick="printReceiptSlip(\'' + esc(r.ReceiptNo) + '\')">' + t('printSlip') + '</button></td></tr>';
+    }).join('') : '<tr><td colspan="6" class="empty">' + t('No receipts yet.') + '</td></tr>';
   };
 
   /* ---------- history ---------- */
@@ -1150,11 +1276,37 @@
       var ver = String(u.EmailVerified) === 'Yes' ? '<span class="badge verified">Verified ✓' + (u.VerifiedDate ? ' ' + esc(u.VerifiedDate) : '') + '</span>' : '<span class="badge not-verified">Not verified</span>';
       var linked = u.TeacherID ? teacherName(u.TeacherID) : '—';
       return '<tr><td>' + esc(u.Name) + '</td><td>' + esc(u.Username) + '</td><td>' + esc(u.Role) + '</td><td>' + esc(linked) + '</td><td dir="ltr">' + esc(u.Phone || '') + '</td>' +
-        '<td dir="ltr">' + esc(u.Email || '—') + '</td><td>' + ver + '</td><td>' + esc(u.Status) + '</td>' +
+        '<td dir="ltr">' + esc(u.Email || '—') + '</td><td>' + ver + '</td><td>' + esc(u.Status) + '</td><td>' + esc(permSummary(u)) + '</td>' +
         '<td><button class="btn small secondary" onclick="toggleUser(\'' + esc(u.UserID) + '\')">' + (u.Status === 'Active' ? t('disable') : t('enable')) + '</button> ' +
-        '<button class="btn small secondary" onclick="resetUserPassword(\'' + esc(u.UserID) + '\')">' + t('resetPass') + '</button></td></tr>';
-    }).join('') : '<tr><td colspan="9" class="empty">' + t('No users yet.') + '</td></tr>';
+        '<button class="btn small secondary" onclick="resetUserPassword(\'' + esc(u.UserID) + '\')">' + t('resetPass') + '</button> ' +
+        '<button class="btn small secondary" onclick="editUser(\'' + esc(u.UserID) + '\')">' + t('edit') + '</button></td></tr>';
+    }).join('') : '<tr><td colspan="10" class="empty">' + t('No users yet.') + '</td></tr>';
     fillAdminEmailUsers();
+  };
+  function permSummary(u) {
+    if (u.Role !== 'Editor') return '—';
+    var p = u.Permissions ? String(u.Permissions).split(',') : [];
+    if (!p.length) return t('fullAccess');
+    return p.map(function (x) { var parts = x.split(':'); return parts[0] + ' (' + parts[1] + ')'; }).join(', ');
+  }
+  function readPerms() {
+    var areas = ['students', 'fees', 'accounts', 'attendance'];
+    return areas.filter(function (a) { var el = $('perm' + a.charAt(0).toUpperCase() + a.slice(1) + 'Edit'); return el && el.checked; }).map(function (a) { return a + ':edit'; }).join(',');
+  }
+  function fillPerms(p) {
+    var list = p ? String(p).split(',') : [];
+    ['students', 'fees', 'accounts', 'attendance'].forEach(function (a) { var el = $('perm' + a.charAt(0).toUpperCase() + a.slice(1) + 'Edit'); if (el) el.checked = list.indexOf(a + ':edit') !== -1; });
+  }
+  window.editUser = function (id) {
+    if (!requireRole('saveUser')) return;
+    var u = users.filter(function (x) { return String(x.UserID) === String(id); })[0]; if (!u) return;
+    $('newUserId').value = u.UserID; $('newUserName').value = u.Name || ''; $('newUserUsername').value = u.Username || '';
+    $('newUserPassword').value = ''; $('newUserPassword').required = false;
+    $('newUserRole').value = u.Role || 'Editor'; $('newUserPhone').value = u.Phone || '';
+    if ($('newUserEmail')) $('newUserEmail').value = u.Email || '';
+    if ($('newUserTeacher')) $('newUserTeacher').value = u.TeacherID || '';
+    fillPerms(u.Permissions || '');
+    toggleUserTeacher(); window.scrollTo(0, 0);
   };
   window.toggleUser = function (id) {
     if (!requireRole('saveUser')) return;
@@ -1174,14 +1326,20 @@
   window.saveUserUI = function (e) {
     e.preventDefault();
     if (!requireRole('saveUser')) return;
-    var u = { UserID: 'USR-' + Date.now(), Name: $('newUserName').value.trim(), Username: $('newUserUsername').value.trim(), Password: $('newUserPassword').value, Role: $('newUserRole').value, Phone: $('newUserPhone').value.trim(), Status: 'Active', Email: $('newUserEmail') ? $('newUserEmail').value.trim() : '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '', TeacherID: ($('newUserRole').value === 'Qari' && $('newUserTeacher')) ? $('newUserTeacher').value : '' };
-    if (!u.Name || !u.Username || !u.Password) { alert('Name, username and password are required.'); return; }
-    if (users.some(function (x) { return String(x.Username) === u.Username; })) { alert('Username already exists.'); return; }
-    users.push(u); MMLocal.saveLocal('users', users);
-    MMLocal.queueChange('saveUser', { user: u, role: role() });
-    e.target.reset(); toggleUserTeacher();
+    var editId = $('newUserId') ? $('newUserId').value : '';
+    var u = { UserID: editId || ('USR-' + Date.now()), Name: $('newUserName').value.trim(), Username: $('newUserUsername').value.trim(), Password: $('newUserPassword').value, Role: $('newUserRole').value, Phone: $('newUserPhone').value.trim(), Status: 'Active', Email: $('newUserEmail') ? $('newUserEmail').value.trim() : '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '', TeacherID: ($('newUserRole').value === 'Qari' && $('newUserTeacher')) ? $('newUserTeacher').value : '', Permissions: readPerms() };
+    if (!u.Name || !u.Username || (!editId && !u.Password)) { alert('Name, username and password are required.'); return; }
+    if (users.some(function (x) { return String(x.Username) === u.Username && String(x.UserID) !== String(u.UserID); })) { alert('Username already exists.'); return; }
+    if (editId) {
+      var ex = users.filter(function (x) { return String(x.UserID) === String(editId); })[0];
+      if (ex) { if (!u.Password) u.Password = ex.Password; u.Status = ex.Status; u.EmailVerified = ex.EmailVerified || 'No'; u.VerifiedDate = ex.VerifiedDate || ''; Object.assign(ex, u); MMLocal.saveLocal('users', users); persistUser(ex); }
+    } else {
+      users.push(u); MMLocal.saveLocal('users', users);
+      MMLocal.queueChange('saveUser', { user: u, role: role() });
+    }
+    e.target.reset(); if ($('newUserId')) $('newUserId').value = ''; $('newUserPassword').required = true; fillPerms(''); toggleUserTeacher();
     renderUsers(); refreshSyncPill();
-    alert('User created (' + u.Role + '). Username: ' + u.Username + (u.TeacherID ? ' — linked to ' + teacherName(u.TeacherID) : ''));
+    alert(editId ? ('User updated (' + u.Role + '). Username: ' + u.Username) : ('User created (' + u.Role + '). Username: ' + u.Username + (u.TeacherID ? ' — linked to ' + teacherName(u.TeacherID) : '')));
   };
 
   /* ---------- settings (Admin only — saved via order.js queue) ---------- */
@@ -1265,6 +1423,7 @@
     if (kind === 'item') { showSection('accounts'); var it = $('itemName'); if (it) it.focus(); }
     if (kind === 'class') { showSection('settings'); var c = $('className'); if (c) c.focus(); }
     if (kind === 'user') { showSection('settings'); var u = $('newUserName'); if (u) u.focus(); }
+    if (kind === 'vehicle') { showSection('vehicles'); var v = $('vehNo'); if (v) v.focus(); }
   };
 
   /* ---------- classes (Admin only) ---------- */
@@ -1412,7 +1571,11 @@
     }).join('') : '<div class="empty">' + t('No students in this session.') + '</div>';
   }
   window.saveMyClassAttendance = function () {
+    if (!requireRole('saveAttendance')) return;
     if (!attSessionList.length) return;
+    var date0 = today(), session0 = $('myAttSession').value;
+    var already0 = attendance.filter(function (a) { return a.Date === date0 && a.Session === session0 && a.StudentID === 'SUMMARY'; })[0];
+    if (already0) { alert(t('attFinal')); return; }
     var absent = [], leave = [];
     Object.keys(attMarks).forEach(function (id) { if (attMarks[id] === 'Absent') absent.push(id); else leave.push(id); });
     var present = attSessionList.length - absent.length - leave.length;
@@ -1425,6 +1588,136 @@
     MMLocal.queueChange('saveAttendance', { date: date, session: session, markedBy: by, absent: absent, leave: leave, totalInSession: attSessionList.length, role: role() });
     var note = $('myAttSavedNote'); if (note) note.textContent = t('present') + ': ' + present + ' · ' + t('absent') + ': ' + absent.length + ' · ' + t('leave') + ': ' + leave.length;
     renderMyClass(); refreshSyncPill();
+  };
+
+
+  /* ---------- vehicles (expenses tracked separately) ---------- */
+  function vehicleNo(id) { if (!id) return '—'; var v = vehicles.filter(function (x) { return String(x.VehicleID) === String(id); })[0]; return v ? v.VehicleNo : id; }
+  function fillVehicleSelect() { var tv = $('txVehicle'); if (tv) tv.innerHTML = '<option value="">—</option>' + vehicles.filter(function (v) { return v.Status === 'Active'; }).map(function (v) { return '<option value="' + esc(v.VehicleID) + '">' + esc(v.VehicleNo) + ' — ' + esc(v.Type || '') + '</option>'; }).join(''); }
+  window.renderVehicles = function () {
+    var el = $('vehiclesTable'); if (!el) return;
+    el.innerHTML = vehicles.length ? vehicles.map(function (v) {
+      var exp = accounts.filter(function (a) { return String(a.VehicleID) === String(v.VehicleID) && a.Type === 'Expense'; }).reduce(function (s, a) { return s + (Number(a.Amount) || 0); }, 0);
+      return '<tr><td>' + esc(v.VehicleNo) + '</td><td>' + esc(v.Type || '—') + '</td><td>' + esc(v.Driver || '—') + '</td><td>' + esc(v.Route || '—') + '</td><td>' + esc(v.Status) + '</td><td>' + rs(exp) + '</td>' +
+        '<td><button class="btn small secondary" onclick="editVehicle(\'' + esc(v.VehicleID) + '\')">' + t('edit') + '</button></td></tr>';
+    }).join('') : '<tr><td colspan="7" class="empty">' + t('noVehicles') + '</td></tr>';
+    fillVehicleSelect();
+  };
+  window.editVehicle = function (id) {
+    if (!requireRole('saveVehicle')) return;
+    var v = vehicles.filter(function (x) { return String(x.VehicleID) === String(id); })[0]; if (!v) return;
+    $('vehId').value = v.VehicleID; $('vehNo').value = v.VehicleNo || ''; $('vehType').value = v.Type || '';
+    $('vehDriver').value = v.Driver || ''; $('vehRoute').value = v.Route || ''; $('vehStatus').value = v.Status || 'Active';
+    window.scrollTo(0, 0);
+  };
+  window.saveVehicleUI = function (e) {
+    e.preventDefault(); if (!requireRole('saveVehicle')) return;
+    var v = { VehicleID: $('vehId').value || ('VEH-' + Date.now()), VehicleNo: $('vehNo').value.trim(), Type: $('vehType').value.trim(), Driver: $('vehDriver').value.trim(), Route: $('vehRoute').value.trim(), Status: $('vehStatus').value };
+    if (!v.VehicleNo) { alert(t('vehicleNoRequired')); return; }
+    MMLocal.upsertLocal('vehicles', 'VehicleID', v);
+    MMLocal.queueChange('saveVehicle', { vehicle: v, role: role() });
+    e.target.reset(); $('vehId').value = '';
+    renderVehicles(); refreshSyncPill();
+  };
+  window.resetVehicleForm = function () { $('vehicleForm').reset(); $('vehId').value = ''; };
+
+  /* ---------- print: POS slip receipt (80mm) + A4 student profile ---------- */
+  window.printReceiptSlip = function (receiptNo) {
+    var rec = receipts.filter(function (r) { return String(r.ReceiptNo) === String(receiptNo); })[0]; if (!rec) return;
+    var name = rec.StudentID ? studentName(rec.StudentID) : '';
+    var w = window.open('', '_blank', 'width=340,height=640');
+    if (!w) { alert('Please allow pop-ups to print.'); return; }
+    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt ' + esc(rec.ReceiptNo) + '</title><style>body{font-family:monospace;width:80mm;margin:0 auto;padding:8px;font-size:13px}h2{text-align:center;font-size:15px;margin:4px 0}p,td{margin:2px 0}table{width:100%}hr{border-top:1px dashed #000}.c{text-align:center}.r{text-align:right}</style></head><body>' +
+      '<h2>' + esc(settings.MadrasaName || 'Madrasa') + '</h2><p class="c">' + esc(settings.Address || '') + '</p><hr>' +
+      '<table><tr><td>Receipt</td><td class="r"><b>' + esc(rec.ReceiptNo) + '</b></td></tr>' +
+      '<tr><td>Date</td><td class="r">' + esc(rec.Date) + '</td></tr>' +
+      '<tr><td>Fund</td><td class="r">' + esc(rec.Fund) + '</td></tr>' +
+      (name ? '<tr><td>Student</td><td class="r">' + esc(name) + '</td></tr>' : '') +
+      '<tr><td>Purpose</td><td class="r">' + esc(rec.Purpose) + '</td></tr></table><hr>' +
+      '<p><b>Amount: ' + rs(rec.Amount) + '</b></p><p class="c">' + esc(t('thankYou')) + '</p>' +
+      '<script>window.onload=function(){window.print();}</script></body></html>');
+    w.document.close();
+  };
+  window.printStudentProfile = function () {
+    var s = students.filter(function (x) { return String(x.StudentID) === String(profileStudentId); })[0]; if (!s) return;
+    var rows = ledger.filter(function (r) { return String(r.StudentID) === String(s.StudentID); });
+    var att = attendance.filter(function (a) { return String(a.StudentID) === String(s.StudentID); });
+    var sab = sabaq.filter(function (r) { return String(r.StudentID) === String(s.StudentID); }).slice(-10).reverse();
+    var w = window.open('', '_blank', 'width=820,height=900');
+    if (!w) { alert('Please allow pop-ups to print.'); return; }
+    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(s.Name) + '</title><style>body{font-family:Arial,sans-serif;margin:20px;font-size:14px}h1{font-size:20px}h2{font-size:15px;margin-top:18px;border-bottom:1px solid #999;padding-bottom:4px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:5px 8px;text-align:left}img{max-width:120px;max-height:120px}</style></head><body>' +
+      '<h1>' + esc(settings.MadrasaName || 'Madrasa') + ' — ' + esc(s.Name) + '</h1>' +
+      (s.PhotoURL ? '<img src="' + esc(s.PhotoURL) + '" alt="">' : '') +
+      '<table><tr><td>Father</td><td>' + esc(s.FatherName) + '</td></tr><tr><td>Class</td><td>' + esc(s.Class) + '</td></tr>' +
+      '<tr><td>Status</td><td>' + esc(s.Status) + '</td></tr><tr><td>Admission</td><td>' + esc(s.AdmissionDate) + '</td></tr>' +
+      '<tr><td>Monthly fee</td><td>' + rs(s.MonthlyFee) + '</td></tr><tr><td>Address</td><td>' + esc(s.Address || '—') + '</td></tr>' +
+      '<tr><td>Father phone</td><td>' + esc(s.FatherPhone || '—') + '</td></tr><tr><td>Guardian phone</td><td>' + esc(s.GuardianPhone || '—') + '</td></tr></table>' +
+      '<h2>Ledger</h2><table><tr><th>Date</th><th>Type</th><th>Amount</th><th>Receipt</th></tr>' +
+      (rows.length ? rows.slice().reverse().map(function (r) { return '<tr><td>' + esc(r.Date) + '</td><td>' + esc(r.Type) + '</td><td>' + rs(r.Amount) + '</td><td>' + esc(r.ReceiptNo) + '</td></tr>'; }).join('') : '<tr><td colspan="4">No entries</td></tr>') + '</table>' +
+      '<h2>Attendance (recorded)</h2><p>' + (att.length ? att.map(function (a) { return a.Date + ' (' + a.Session + '): ' + a.Status; }).join(' · ') : 'No record') + '</p>' +
+      '<h2>Sabaq — recent</h2><p>' + (sab.length ? sab.map(function (r) { return r.Date + ' — ' + (r.Sabaq || '—') + ' (' + (r.Recited || 'Yes') + ')'; }).join('<br>') : '—') + '</p>' +
+      '<script>window.onload=function(){window.print();}</script></body></html>');
+    w.document.close();
+  };
+  window.downloadStudentProfile = function () {
+    var s = students.filter(function (x) { return String(x.StudentID) === String(profileStudentId); })[0]; if (!s) return;
+    var data = { student: s, ledger: ledger.filter(function (r) { return String(r.StudentID) === String(s.StudentID); }), attendance: attendance.filter(function (a) { return String(a.StudentID) === String(s.StudentID); }), sabaq: sabaq.filter(function (r) { return String(r.StudentID) === String(s.StudentID); }) };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'student-' + s.StudentID + '.json'; a.click();
+  };
+  window.shareStudentProfile = function () {
+    var s = students.filter(function (x) { return String(x.StudentID) === String(profileStudentId); })[0]; if (!s) return;
+    var text = (settings.MadrasaName || 'Madrasa') + ' — ' + s.Name + ' (' + s.Class + ') · Father: ' + s.FatherName + ' · Fee: ' + rs(s.MonthlyFee) + ' · Status: ' + s.Status;
+    if (navigator.share) { navigator.share({ title: s.Name, text: text }).catch(function () {}); return; }
+    if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function () { alert(t('copiedLabel')); }).catch(function () { alert(text); }); return; }
+    alert(text);
+  };
+
+  /* ---------- backup: download whole dataset / upload to restore ---------- */
+  window.downloadBackupUI = function () {
+    if (!requireRole('exportBackup')) return;
+    MMLocal.apiPost('exportBackup', { role: role() }).then(function (d) {
+      if (d && d.ok && d.backup) {
+        var blob = new Blob([JSON.stringify(d.backup, null, 2)], { type: 'application/json' });
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'madrasa-masjid-backup-' + today() + '.json'; a.click();
+      } else alert((d && d.error) || 'Backup failed.');
+    }).catch(function () { alert('Backup failed — check connection.'); });
+  };
+  window.uploadBackupUI = function (input) {
+    if (!requireRole('restoreBackup')) return;
+    var f = input.files && input.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var b = JSON.parse(r.result);
+        if (!b.tabs) { alert('Invalid backup file.'); return; }
+        if (!confirm(t('backupRestoreConfirm'))) return;
+        MMLocal.apiPost('restoreBackup', { backup: b, role: role() }).then(function (d) {
+          if (d && d.ok) { alert(t('backupRestored')); refreshFromServer(); }
+          else alert((d && d.error) || 'Restore failed.');
+        }).catch(function () { alert('Restore failed — check connection.'); });
+      } catch (e) { alert('Invalid backup file.'); }
+    };
+    r.readAsText(f);
+  };
+
+  /* ---------- Admin changes his own password ---------- */
+  window.changeMyPasswordUI = function (e) {
+    e.preventDefault();
+    if (!requireRole('saveUser')) return;
+    var np = $('myNewPass').value, cp = $('myConfirmPass').value;
+    if (!np || np.length < 6) { alert(t('passMin6')); return; }
+    if (np !== cp) { alert(t('passNoMatch')); return; }
+    var me = currentUser;
+    var payloadUser = { UserID: me.UserID, Name: me.Name, Role: me.Role, Username: me.Username, Password: np, Phone: me.Phone || '', Status: 'Active', Email: me.Email || '' };
+    MMLocal.apiPost('saveUser', { user: payloadUser, role: role() }).then(function (d) {
+      if (d && d.ok) {
+        var u = users.filter(function (x) { return String(x.UserID) === String(me.UserID); })[0];
+        if (u) { u.Password = np; MMLocal.saveLocal('users', users); }
+        $('myNewPass').value = ''; $('myConfirmPass').value = '';
+        alert(t('passwordChanged'));
+      } else alert((d && d.error) || 'Could not change password.');
+    }).catch(function () { alert('Could not change password — check connection.'); });
   };
 
   /* ---------- users (Admin only) + admin-only passwords ---------- */

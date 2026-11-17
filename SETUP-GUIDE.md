@@ -318,3 +318,13 @@ Do not sell it as "secure" — see the login security note above.
 - **Classes:** define classes in Settings > Classes (Qaida, Nazra, Hifz, Alim-e-Deen Level 1–8, Fazil). Each level is a separate class.
 - **Graphs:** Reports & Graphs section (Chart.js CDN) + a class attendance graph on My Class.
 - **Sabaq:** daily report shows who recited and who did not; each student profile has an attendance calendar.
+
+## v5 (2026-11-17) — attendance roles, vehicles, print, backup, passwords, permissions
+- Head Qari (Admin) monitors attendance only — he CANNOT mark it. Assistant Qaris mark attendance for their own students. Once marked, attendance is final; only the Admin can correct it (Attendance > records panel). The server enforces this too (saveAttendance rejects Admin and re-marking).
+- Vehicles: new Vehicles tab + Vehicles section. Pick a vehicle when adding a transaction; each vehicle shows its own total expenses.
+- Print: receipts print as a small 80mm POS slip (Receipts > Print slip). A student profile prints on A4, and can also be saved (JSON download) or shared.
+- Backup: Settings > Backup — Download backup (whole Sheet as one JSON file) / Upload backup to restore. Admin only.
+- Passwords: Admin changes his own password in Settings > Change my password. Qari passwords are set/reset only by the Admin (Users > Reset password / Generate password).
+- Permissions: when creating an Editor, tick what he may EDIT (students / fees / accounts / attendance). Unticked = view-only. Qari is always limited to his own children.
+- Students list is grouped by class. Dashboard shows today's attendance totals (present / absent / leave).
+- IMPORTANT: Code.gs v5 must be deployed as a NEW VERSION (same Web App URL) before any of this saves to the Sheet — see the v4 note above.

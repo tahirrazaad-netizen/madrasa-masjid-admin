@@ -38,13 +38,14 @@ const SEED_FLAG = 'mm_seeded_v3';
 const TABS = {
   Students: ['StudentID','Name','FatherName','Age','Class','Session1','Session2','NightSession','AdmissionDate','MonthlyFee','Status','FatherPhone','GuardianPhone','Address','AdmissionFeeAmount','AdmissionFeePaid','AdmissionFeeDate','AdmissionFeeReceiptNo','ClassHistory','PhotoURL','InCharge'],
   Teachers: ['TeacherID','Name','Phone','Class','JoinDate','LeaveDate','Status','MonthlySalary','PhotoURL'],
-  Users: ['UserID','Name','Role','Username','Password','Phone','Status','Email','EmailVerified','VerifiedDate','ResetCode','ResetExpiry','TeacherID'],
+  Users: ['UserID','Name','Role','Username','Password','Phone','Status','Email','EmailVerified','VerifiedDate','ResetCode','ResetExpiry','TeacherID','Permissions'],
   Attendance: ['Date','Session','StudentID','Status','MarkedBy'],
   Sabaq: ['Date','StudentID','Sabaq','Amount','TeacherNote','MarkedBy','Recited'],
   Fees: ['ReceiptNo','Date','StudentID','Month','Amount','Status','Method'],
   StudentLedger: ['LedgerID','Date','StudentID','Type','Amount','Method','ReceiptNo','Note'],
-  Accounts: ['Date','Fund','Type','Category','Item','Allocated','AllocatedAmount','SpentAmount','Amount','Description','ReceiptNo','EnteredBy','TeacherID'],
+  Accounts: ['Date','Fund','Type','Category','Item','Allocated','AllocatedAmount','SpentAmount','Amount','Description','ReceiptNo','EnteredBy','TeacherID','VehicleID'],
   Items: ['ItemID','ItemName','Fund','AllocatedAmount','SpentAmount','Status'],
+  Vehicles: ['VehicleID','VehicleNo','Type','Driver','Route','Status'],
   Classes: ['ClassID','ClassName','Level','Description','Status'],
   Receipts: ['ReceiptNo','Date','Fund','StudentID','TeacherID','Amount','Purpose'],
   Settings: ['Key','Value']
@@ -55,8 +56,10 @@ const TABS = {
 // Qari: only attendance, sabaq, and read-only views of his own class.
 // Any other action from a Qari/Editor is rejected here.
 const ROLE_DENY = {
-  Editor: ['saveSettings', 'saveUser', 'saveClass'],
-  Qari: ['saveStudent', 'saveTeacher', 'recordFee', 'recordTransaction', 'saveSettings', 'saveUser', 'saveItem', 'recordLedger', 'saveClass']
+  // Attendance marking is the assistant Qaris' job only. The Head Qari
+  // (Admin) monitors and corrects, but never marks. Editor marks nothing.
+  Editor: ['saveSettings', 'saveUser', 'saveClass', 'saveAttendance', 'correctAttendance', 'saveVehicle', 'restoreBackup', 'exportBackup'],
+  Qari: ['saveStudent', 'saveTeacher', 'recordFee', 'recordTransaction', 'saveSettings', 'saveUser', 'saveItem', 'recordLedger', 'saveClass', 'correctAttendance', 'saveVehicle', 'restoreBackup', 'exportBackup']
 };
 
 function roleAllowed(role, action) {
@@ -246,7 +249,12 @@ function handleAction(action, p) {
     case 'getSettings': return { ok: true, settings: getSettingsObj() };
     case 'saveSettings': return saveSettings(p.settings || p);
     case 'saveAttendance': return saveAttendance(p);
+    case 'correctAttendance': return correctAttendance(p);
     case 'getAttendance': return { ok: true, attendance: readRows('Attendance') };
+    case 'getVehicles': return { ok: true, vehicles: readRows('Vehicles') };
+    case 'saveVehicle': return saveVehicle(p.vehicle || p);
+    case 'exportBackup': return exportBackup();
+    case 'restoreBackup': return restoreBackup(p.backup || p);
     case 'saveSabaq': return saveSabaq(p.sabaq || p);
     case 'getSabaq': return { ok: true, sabaq: readRows('Sabaq') };
     case 'recordFee': return recordFee(p.fee || p);
@@ -389,7 +397,7 @@ function login(username, password) {
   const users = readRows('Users');
   const u = users.filter(function (x) { return String(x.Username) === String(username) && String(x.Password) === String(password) && x.Status === 'Active'; })[0];
   if (!u) return { ok: false, error: 'Wrong username or password, or account disabled.' };
-  return { ok: true, user: { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone, Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '' } };
+  return { ok: true, user: { UserID: u.UserID, Name: u.Name, Role: u.Role, Username: u.Username, Phone: u.Phone, Email: u.Email || '', EmailVerified: u.EmailVerified || 'No', TeacherID: u.TeacherID || '', Permissions: u.Permissions || '' } };
 }
 
 function nextReceiptNo() {
@@ -517,6 +525,20 @@ function saveSettings(settings) {
 function saveAttendance(p) {
   // p: { date, session ('1st'|'2nd'|'Night'), markedBy, absent:[StudentID], leave:[StudentID] }
   // Everyone in the session is Present by default — ONLY absences/leaves are written.
+  // RULES (user's model): the Head Qari (Admin) monitors but NEVER marks
+  // attendance — only assistant Qaris mark it. Once a date+session is
+  // marked it is FINAL: re-marking is rejected; only the Admin can correct
+  // it with correctAttendance().
+  if ((p.role || p.Role) === 'Admin') return { ok: false, error: 'Admin (Head Qari) monitors attendance but does not mark it. Attendance is marked by assistant Qaris.' };
+  const sh = getTab('Attendance');
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+  const dIdx = headers.indexOf('Date'), sIdx = headers.indexOf('Session'), stuIdx = headers.indexOf('StudentID');
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][dIdx]) === String(p.date) && String(values[i][sIdx]) === String(p.session) && String(values[i][stuIdx]) === 'SUMMARY') {
+      return { ok: false, error: 'Attendance for ' + p.date + ' (' + p.session + ') is already marked and final. Only the Admin (Head Qari) can correct it.' };
+    }
+  }
   const absent = p.absent || [];
   const leave = p.leave || [];
   absent.forEach(function (id) {
@@ -529,6 +551,75 @@ function saveAttendance(p) {
   const present = Math.max(0, (Number(p.totalInSession) || 0) - absent.length - leave.length);
   appendRow('Attendance', { Date: p.date, Session: p.session, StudentID: 'SUMMARY', Status: 'Present: ' + present + ' | Absent: ' + absent.length + ' | Leave: ' + leave.length, MarkedBy: p.markedBy || '' });
   return { ok: true, present: present, absent: absent.length, leave: leave.length };
+}
+
+// Admin-only correction of a FINALISED attendance record.
+// p: { date, session, studentId, status: 'Present'|'Absent'|'Leave', markedBy }
+// Present = delete the Absent/Leave row; Absent/Leave = upsert the row.
+// The SUMMARY row is recomputed from the Students tab (session membership).
+function correctAttendance(p) {
+  const sh = getTab('Attendance');
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+  const dIdx = headers.indexOf('Date'), sIdx = headers.indexOf('Session'), stuIdx = headers.indexOf('StudentID'), stIdx = headers.indexOf('Status');
+  var targetRow = -1, summaryRow = -1;
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][dIdx]) !== String(p.date) || String(values[i][sIdx]) !== String(p.session)) continue;
+    if (String(values[i][stuIdx]) === String(p.studentId)) targetRow = i + 1;
+    if (String(values[i][stuIdx]) === 'SUMMARY') summaryRow = i + 1;
+  }
+  if (p.status === 'Present') {
+    if (targetRow !== -1) sh.deleteRow(targetRow);
+  } else {
+    if (targetRow !== -1) {
+      sh.getRange(targetRow, stIdx + 1).setValue(p.status);
+    } else {
+      appendRow('Attendance', { Date: p.date, Session: p.session, StudentID: p.studentId, Status: p.status, MarkedBy: p.markedBy || '' });
+    }
+  }
+  // Recompute the SUMMARY counts.
+  var rows = readRows('Attendance').filter(function (a) { return a.Date === p.date && a.Session === p.session && a.StudentID !== 'SUMMARY'; });
+  var absent = rows.filter(function (a) { return a.Status === 'Absent'; }).length;
+  var leave = rows.filter(function (a) { return a.Status === 'Leave'; }).length;
+  var students = readRows('Students').filter(function (s) { return s.Status === 'Current'; });
+  var total = students.filter(function (s) {
+    return p.session === '1st' ? s.Session1 === 'yes' : p.session === '2nd' ? s.Session2 === 'yes' : s.NightSession === 'yes';
+  }).length;
+  var present = Math.max(0, total - absent - leave);
+  var summary = 'Present: ' + present + ' | Absent: ' + absent + ' | Leave: ' + leave;
+  if (summaryRow !== -1) sh.getRange(summaryRow, stIdx + 1).setValue(summary);
+  else appendRow('Attendance', { Date: p.date, Session: p.session, StudentID: 'SUMMARY', Status: summary, MarkedBy: p.markedBy || '' });
+  return { ok: true, present: present, absent: absent, leave: leave };
+}
+
+function saveVehicle(v) {
+  if (!v.VehicleID) v.VehicleID = 'VEH-' + new Date().getTime();
+  if (!v.VehicleNo) return { ok: false, error: 'Vehicle number is required.' };
+  if (!v.Status) v.Status = 'Active';
+  upsertRow('Vehicles', 'VehicleID', v.VehicleID, v);
+  return { ok: true, vehicle: v };
+}
+
+// Full backup: every tab's rows as JSON (Admin only — see ROLE_DENY).
+function exportBackup() {
+  var backup = { exportedAt: new Date().toISOString(), tabs: {} };
+  Object.keys(TABS).forEach(function (name) { backup.tabs[name] = readRows(name); });
+  return { ok: true, backup: backup };
+}
+function restoreBackup(backup) {
+  if (!backup || !backup.tabs) return { ok: false, error: 'No backup data.' };
+  Object.keys(backup.tabs).forEach(function (name) {
+    if (!TABS[name]) return;
+    var sh = getTab(name);
+    var rows = backup.tabs[name] || [];
+    var lastRow = sh.getLastRow();
+    if (lastRow > 1) sh.getRange(2, 1, lastRow - 1, TABS[name].length).clearContent();
+    if (rows.length) {
+      var values = rows.map(function (r) { return TABS[name].map(function (h) { return r[h] === undefined ? '' : r[h]; }); });
+      sh.getRange(2, 1, values.length, TABS[name].length).setValues(values);
+    }
+  });
+  return { ok: true, restored: true };
 }
 
 function saveSabaq(s) {
@@ -633,7 +724,7 @@ function recordTransaction(t) {
   if (!t.amount && t.amount !== 0) return { ok: false, error: 'Amount is required.' };
   let receiptNo = t.receiptNo || t.ReceiptNo || '';
   if (t.type === 'Income' && !receiptNo) receiptNo = nextReceiptNo();
-  const row = { Date: t.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), Fund: t.fund, Type: t.type, Category: t.category || '', Item: t.item || '', Allocated: t.allocated || '', AllocatedAmount: Number(t.allocatedAmount || 0), SpentAmount: Number(t.type === 'Expense' ? t.amount : 0), Amount: Number(t.amount), Description: t.description || '', ReceiptNo: receiptNo, EnteredBy: t.enteredBy || '', TeacherID: t.teacherId || t.TeacherID || '' };
+  const row = { Date: t.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), Fund: t.fund, Type: t.type, Category: t.category || '', Item: t.item || '', Allocated: t.allocated || '', AllocatedAmount: Number(t.allocatedAmount || 0), SpentAmount: Number(t.type === 'Expense' ? t.amount : 0), Amount: Number(t.amount), Description: t.description || '', ReceiptNo: receiptNo, EnteredBy: t.enteredBy || '', TeacherID: t.teacherId || t.TeacherID || '', VehicleID: t.vehicleId || t.VehicleID || '' };
   appendRow('Accounts', row);
   // Keep the Items/Budget sheet in sync when an expense names an item.
   if (row.Type === 'Expense' && row.Item) {
