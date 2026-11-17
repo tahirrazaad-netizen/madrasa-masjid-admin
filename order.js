@@ -160,51 +160,37 @@
     };
   }
 
-  // Demo rows, local only, ONLY when the local store is completely empty.
-  // Clearly labelled DEMO — delete them from Students/Teachers in the UI.
-  // v2 demo logins (change in Settings > Users after first login):
-  //   admin/admin123 (Admin), editor/editor123 (Editor), qari/qari123 (Qari)
-  // DEMO ONLY — not secure production auth (see SETUP-GUIDE.md).
+  // v5: NO demo rows and NO demo logins anywhere. The Sheet is the source
+  // of truth; local storage starts empty and fills from the server. The
+  // Admin account is created by the Admin in the Sheet (Settings > Users).
+  // Default classes are seeded locally so the class lists work offline.
   function seedDemoLocal() {
-    if (getLocal('students').length || getLocal('teachers').length) return false;
+    if (getLocal('students').length || getLocal('teachers').length || getLocal('users').length) return false;
     var today = new Date().toISOString().slice(0, 10);
     var ym = today.slice(0, 7);
-    saveLocal('students', [
-      { StudentID: 'STU-DEMO-01', Name: 'DEMO طالب علم (Demo — delete me)', FatherName: 'DEMO والد', Age: 10, Class: 'ناظرہ', Session1: 'yes', Session2: 'yes', NightSession: 'no', AdmissionDate: today, MonthlyFee: 0, Status: 'Current', FatherPhone: '', GuardianPhone: '', Address: 'DEMO گاؤں (Demo village)', AdmissionFeeAmount: 0, AdmissionFeePaid: 'No', AdmissionFeeDate: '', AdmissionFeeReceiptNo: '', ClassHistory: 'ناظرہ', PhotoURL: '' },
-      { StudentID: 'STU-DEMO-02', Name: 'DEMO حافظ طالب علم (Demo Hifz Completed — delete me)', FatherName: 'DEMO والد', Age: 14, Class: 'حفظ', Session1: 'yes', Session2: 'no', NightSession: 'yes', AdmissionDate: today, MonthlyFee: 0, Status: 'HifzCompleted', FatherPhone: '', GuardianPhone: '', Address: 'DEMO گاؤں (Demo village)', AdmissionFeeAmount: 0, AdmissionFeePaid: 'Yes', AdmissionFeeDate: today, AdmissionFeeReceiptNo: 'MSD-DEMO-ADM', ClassHistory: 'قاعدہ > ناظرہ > حفظ', PhotoURL: '' }
-    ]);
-    saveLocal('teachers', [
-      { TeacherID: 'TCH-DEMO-01', Name: 'DEMO قاری صاحب (Demo — delete me)', Phone: '', Class: 'حفظ', JoinDate: today, LeaveDate: '', Status: 'Active', MonthlySalary: 0, PhotoURL: '' }
-    ]);
-    saveLocal('users', [
-      { UserID: 'USR-DEMO-ADMIN', Name: 'DEMO ایڈمن (Demo Admin)', Role: 'Admin', Username: 'admin', Password: 'admin123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' },
-      { UserID: 'USR-DEMO-EDITOR', Name: 'DEMO ایڈیٹر (Demo Editor)', Role: 'Editor', Username: 'editor', Password: 'editor123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' },
-      { UserID: 'USR-DEMO-QARI', Name: 'DEMO قاری صاحب (Demo Qari)', Role: 'Qari', Username: 'qari', Password: 'qari123', Phone: '', Status: 'Active', Email: '', EmailVerified: 'No', VerifiedDate: '', ResetCode: '', ResetExpiry: '' }
-    ]);
-    saveLocal('settings', { MadrasaName: 'مدرسہ (Madrasa Name — change in Settings)', MasjidName: 'مسجد (Masjid Name — change in Settings)', AdminName: 'ایڈمن (Admin Name)', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#4f46e5' });
+    saveLocal('students', []);
+    saveLocal('teachers', []);
+    saveLocal('users', []);
+    saveLocal('settings', { MadrasaName: 'Madrasa', MasjidName: 'Masjid', AdminName: '', AdminPhone: '', AdminWhatsApp: '', Address: '', LogoURL: '', ThemeColor: '#4f46e5' });
     saveLocal('ledger', []);
-    saveLocal('items', [
-      { ItemID: 'ITM-DEMO-01', ItemName: 'DEMO کتابیں (Demo item — delete me)', Fund: 'Madrasa', AllocatedAmount: 0, SpentAmount: 0, Status: 'Active' }
-    ]);
+    saveLocal('items', []);
     saveLocal('classes', [
-      { ClassID: 'CLS-DEF-1', ClassName: 'Qaida', Level: '—', Description: 'Basic reading (Qaida)', Status: 'Active' },
-      { ClassID: 'CLS-DEF-2', ClassName: 'Nazra', Level: '—', Description: 'Nazra Quran reading', Status: 'Active' },
-      { ClassID: 'CLS-DEF-3', ClassName: 'Hifz', Level: '—', Description: 'Hifz (Quran memorisation)', Status: 'Active' },
-      { ClassID: 'CLS-DEF-4', ClassName: 'Tajweed', Level: '—', Description: 'Tajweed rules', Status: 'Active' },
-      { ClassID: 'CLS-DEF-5', ClassName: 'Alim-e-Deen', Level: 'Level 1', Description: 'Alim course — year 1', Status: 'Active' },
-      { ClassID: 'CLS-DEF-6', ClassName: 'Alim-e-Deen', Level: 'Level 2', Description: 'Alim course — year 2', Status: 'Active' },
-      { ClassID: 'CLS-DEF-7', ClassName: 'Alim-e-Deen', Level: 'Level 3', Description: 'Alim course — year 3', Status: 'Active' },
-      { ClassID: 'CLS-DEF-8', ClassName: 'Alim-e-Deen', Level: 'Level 4', Description: 'Alim course — year 4', Status: 'Active' },
-      { ClassID: 'CLS-DEF-9', ClassName: 'Alim-e-Deen', Level: 'Level 5', Description: 'Alim course — year 5', Status: 'Active' },
-      { ClassID: 'CLS-DEF-10', ClassName: 'Alim-e-Deen', Level: 'Level 6', Description: 'Alim course — year 6', Status: 'Active' },
-      { ClassID: 'CLS-DEF-11', ClassName: 'Alim-e-Deen', Level: 'Level 7', Description: 'Alim course — year 7', Status: 'Active' },
-      { ClassID: 'CLS-DEF-12', ClassName: 'Alim-e-Deen', Level: 'Level 8', Description: 'Alim course — year 8', Status: 'Active' },
-      { ClassID: 'CLS-DEF-13', ClassName: 'Fazil', Level: '—', Description: 'Fazil (advanced) class', Status: 'Active' }
+      { ClassID: 'CLS-DEF-1', ClassName: 'Qaida', Level: '\u2014', Description: 'Basic reading (Qaida)', Status: 'Active' },
+      { ClassID: 'CLS-DEF-2', ClassName: 'Nazra', Level: '\u2014', Description: 'Nazra Quran reading', Status: 'Active' },
+      { ClassID: 'CLS-DEF-3', ClassName: 'Hifz', Level: '\u2014', Description: 'Hifz (Quran memorisation)', Status: 'Active' },
+      { ClassID: 'CLS-DEF-4', ClassName: 'Tajweed', Level: '\u2014', Description: 'Tajweed rules', Status: 'Active' },
+      { ClassID: 'CLS-DEF-5', ClassName: 'Alim-e-Deen', Level: 'Level 1', Description: 'Alim course \u2014 year 1', Status: 'Active' },
+      { ClassID: 'CLS-DEF-6', ClassName: 'Alim-e-Deen', Level: 'Level 2', Description: 'Alim course \u2014 year 2', Status: 'Active' },
+      { ClassID: 'CLS-DEF-7', ClassName: 'Alim-e-Deen', Level: 'Level 3', Description: 'Alim course \u2014 year 3', Status: 'Active' },
+      { ClassID: 'CLS-DEF-8', ClassName: 'Alim-e-Deen', Level: 'Level 4', Description: 'Alim course \u2014 year 4', Status: 'Active' },
+      { ClassID: 'CLS-DEF-9', ClassName: 'Alim-e-Deen', Level: 'Level 5', Description: 'Alim course \u2014 year 5', Status: 'Active' },
+      { ClassID: 'CLS-DEF-10', ClassName: 'Alim-e-Deen', Level: 'Level 6', Description: 'Alim course \u2014 year 6', Status: 'Active' },
+      { ClassID: 'CLS-DEF-11', ClassName: 'Alim-e-Deen', Level: 'Level 7', Description: 'Alim course \u2014 year 7', Status: 'Active' },
+      { ClassID: 'CLS-DEF-12', ClassName: 'Alim-e-Deen', Level: 'Level 8', Description: 'Alim course \u2014 year 8', Status: 'Active' },
+      { ClassID: 'CLS-DEF-13', ClassName: 'Fazil', Level: '\u2014', Description: 'Fazil (advanced) class', Status: 'Active' }
     ]);
     saveLocal('sabaq', []);
-    saveLocal('fees', [
-      { ReceiptNo: 'MSD-DEMO', Date: today, StudentID: 'STU-DEMO-01', Month: ym, Amount: 0, Status: 'Unpaid', Method: '' }
-    ]);
+    saveLocal('fees', []);
     saveLocal('accounts', []);
     saveLocal('attendance', []);
     saveLocal('receipts', []);
